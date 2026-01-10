@@ -1,0 +1,20 @@
+{
+  "name": "wave-type-experiment",
+  "version": "1.0.0",
+  "description": "Wave distortion typography tool inspired by DIA Studio",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mp4-muxer": "^5.2.2",
+    "p5": "^2.1.2",
+    "tweakpane": "^4.0.5",
+    "vite": "^7.3.1"
+  }
+}
