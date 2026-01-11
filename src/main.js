@@ -27,24 +27,42 @@ function parseText(text, mode) {
  */
 function createGrid(chars, params, width, height) {
   const items = [];
-  const { columns, rows, tracking, lineSpacing } = params;
+  const { columns, rows, tracking, lineSpacing, textDistribution } = params;
   const cellWidth = width / columns;
   const cellHeight = height / rows;
 
   let charIndex = 0;
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < columns; col++) {
-      items.push({
-        char: chars[charIndex % chars.length],
-        x: col * cellWidth + cellWidth / 2 + tracking,
-        y: row * cellHeight + cellHeight / 2 + lineSpacing,
-        row,
-        col,
-        totalRows: rows,
-        totalCols: columns,
-        cellWidth,
-        cellHeight,
-      });
+      let char = '';
+
+      if (textDistribution === 'split-letter') {
+        // Each cell gets one letter from input (empty if not enough chars)
+        char = charIndex < chars.length ? chars[charIndex] : '';
+      } else if (textDistribution === 'split-word') {
+        // Each row gets one word from input (first column only)
+        if (col === 0 && row < chars.length) {
+          char = chars[row];
+        }
+      } else {
+        // Default 'repeat': Text repeats to fill all grid cells
+        char = chars[charIndex % chars.length];
+      }
+
+      // Only add item if there's a character to display
+      if (char) {
+        items.push({
+          char,
+          x: col * cellWidth + cellWidth / 2 + tracking,
+          y: row * cellHeight + cellHeight / 2 + lineSpacing,
+          row,
+          col,
+          totalRows: rows,
+          totalCols: columns,
+          cellWidth,
+          cellHeight,
+        });
+      }
       charIndex++;
     }
   }

@@ -242,6 +242,14 @@ export const initControls = (container, onExport, onTransparencyChange) => {
     label: 'Mode',
     options: { 'Letters': 'letter', 'Words': 'word' },
   });
+  textFolder.addBinding(PARAMS, 'textDistribution', {
+    label: 'Distribution',
+    options: {
+      'Repeat': 'repeat',
+      'Split by Letter': 'split-letter',
+      'Split by Word': 'split-word',
+    },
+  });
   fontBinding = textFolder.addBinding(PARAMS, 'font', {
     label: 'Font',
     options: getAllFonts(),
@@ -300,7 +308,7 @@ export const initControls = (container, onExport, onTransparencyChange) => {
   patternBinding.on('change', updateSequenceControls);
   updateSequenceControls(); // Initialize visibility
 
-  seqFolder.addBinding(PARAMS, 'sequenceDelay', { label: 'Delay', min: 0, max: 0.15, step: 0.005 });
+  seqFolder.addBinding(PARAMS, 'waveCycles', { label: 'Wave Cycles', min: 1, max: 15, step: 1 });
   seqFolder.addBinding(PARAMS, 'globalSpeed', { label: 'Speed', min: 0.1, max: 3, step: 0.1 });
 
   // ===== SCALE =====
@@ -322,19 +330,109 @@ export const initControls = (container, onExport, onTransparencyChange) => {
   // ===== POSITION =====
   const posFolder = pane.addFolder({ title: 'Position', expanded: false });
   posFolder.addBinding(PARAMS, 'positionEnabled', { label: 'Enabled' });
-  posFolder.addBinding(PARAMS, 'positionAmplitudeX', { label: 'X', min: 0, max: 100, step: 1 });
-  posFolder.addBinding(PARAMS, 'positionAmplitudeY', { label: 'Y', min: 0, max: 100, step: 1 });
-  posFolder.addBinding(PARAMS, 'positionCurve', {
+
+  const positionModeBinding = posFolder.addBinding(PARAMS, 'positionMode', {
+    label: 'Mode',
+    options: {
+      'Oscillate': 'oscillate',
+      'Travel': 'travel',
+    },
+  });
+
+  const positionOriginBinding = posFolder.addBinding(PARAMS, 'positionOrigin', {
+    label: 'Amplitude Mode',
+    options: {
+      'Off': 'off',
+      'From Center': 'center',
+      'From Edges': 'edges',
+      'Left → Right': 'side0to1',
+      'Right → Left': 'side1to0',
+    },
+  });
+
+  const positionCurveBinding = posFolder.addBinding(PARAMS, 'positionCurve', {
     label: 'Curve',
     options: {
       'Sine': 'sine',
+      'Double Sinusoid': 'doubleSinusoid',
       'Bounce': 'bounce',
       'Elastic': 'elastic',
       'Snap': 'snap',
       'Smooth': 'smooth',
+      'Noise': 'noise',
     },
   });
-  posFolder.addBinding(PARAMS, 'containToCell', { label: 'Contain to Cell' });
+
+  const noiseIntensityBinding = posFolder.addBinding(PARAMS, 'positionNoiseIntensity', {
+    label: 'Noise Intensity',
+    min: 0,
+    max: 1,
+    step: 0.05,
+    hidden: PARAMS.positionCurve !== 'noise',
+  });
+
+  const positionEasingBinding = posFolder.addBinding(PARAMS, 'positionEasing', {
+    label: 'Easing',
+    options: {
+      'Linear': 'linear',
+      'Ease In': 'easeIn',
+      'Ease Out': 'easeOut',
+      'Ease In Out': 'easeInOut',
+      'Ease In Quad': 'easeInQuad',
+      'Ease Out Quad': 'easeOutQuad',
+      'Ease In Out Quad': 'easeInOutQuad',
+      'Ease In Cubic': 'easeInCubic',
+      'Ease Out Cubic': 'easeOutCubic',
+      'Ease In Out Cubic': 'easeInOutCubic',
+      'Ease In Quart': 'easeInQuart',
+      'Ease Out Quart': 'easeOutQuart',
+      'Ease In Out Quart': 'easeInOutQuart',
+    },
+  });
+
+  const positionAmplitudeXBinding = posFolder.addBinding(PARAMS, 'positionAmplitudeX', {
+    label: PARAMS.positionMode === 'travel' ? 'X Travel %' : 'X Amplitude',
+    min: 0,
+    max: PARAMS.positionMode === 'travel' ? 200 : 100,
+    step: 1,
+  });
+
+  const positionAmplitudeYBinding = posFolder.addBinding(PARAMS, 'positionAmplitudeY', {
+    label: PARAMS.positionMode === 'travel' ? 'Y Travel %' : 'Y Amplitude',
+    min: 0,
+    max: PARAMS.positionMode === 'travel' ? 200 : 100,
+    step: 1,
+  });
+
+  const positionFrequencyBinding = posFolder.addBinding(PARAMS, 'positionFrequency', {
+    label: 'Frequency',
+    min: 0.1,
+    max: 5,
+    step: 0.1,
+  });
+
+  posFolder.addBinding(PARAMS, 'containToCell', {
+    label: 'Contain to Cell',
+  });
+
+  // Update position controls visibility based on mode and curve selection
+  const updatePositionControls = () => {
+    const isTravel = PARAMS.positionMode === 'travel';
+    const isNoise = PARAMS.positionCurve === 'noise';
+
+    // Noise intensity only shown when noise curve selected
+    noiseIntensityBinding.hidden = !isNoise;
+
+    // Update amplitude labels based on mode
+    positionAmplitudeXBinding.label = isTravel ? 'X Travel %' : 'X Amplitude';
+    positionAmplitudeYBinding.label = isTravel ? 'Y Travel %' : 'Y Amplitude';
+
+    pane.refresh();
+  };
+
+  positionModeBinding.on('change', updatePositionControls);
+  positionCurveBinding.on('change', updatePositionControls);
+  updatePositionControls(); // Initialize visibility
 
   // ===== OPACITY =====
   const opacityFolder = pane.addFolder({ title: 'Opacity', expanded: false });

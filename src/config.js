@@ -3,6 +3,7 @@ export const PARAMS = {
   // Text
   text: 'HELLO WORLD',
   mode: 'letter', // 'letter' | 'word'
+  textDistribution: 'repeat', // 'repeat' | 'split-letter' | 'split-word'
   font: 'Inter',
   fontSize: 36,
 
@@ -11,7 +12,7 @@ export const PARAMS = {
   rows: 12,
 
   // Sequencing (the core feature)
-  sequenceDelay: 0.03,
+  waveCycles: 2, // Number of wave cycles across the grid (1-15)
   sequencePattern: 'wave', // 'linear' | 'centerOut' | 'wave' | 'spiral' | 'random'
   linearDirection: 'horizontal', // 'horizontal' | 'vertical' | 'diagonal' (used for linear, centerOut, wave)
   spiralDensity: 2, // Controls spiral tightness (higher = tighter spiral)
@@ -25,9 +26,14 @@ export const PARAMS = {
 
   // Position Animation
   positionEnabled: true,
-  positionAmplitudeX: 20,
-  positionAmplitudeY: 0,
+  positionMode: 'oscillate', // 'oscillate' | 'travel'
+  positionOrigin: 'off', // 'off' | 'center' | 'edges' | 'side0to1' | 'side1to0'
+  positionAmplitudeX: 20, // X amplitude (oscillate: pixels, travel: % of canvas)
+  positionAmplitudeY: 0, // Y amplitude (oscillate: pixels, travel: % of canvas)
+  positionFrequency: 1, // Wave frequency - higher = more wave cycles
   positionCurve: 'sine', // 'sine' | 'bounce' | 'elastic' | 'snap' | 'smooth'
+  positionNoiseIntensity: 0.3, // Controls noise curve intensity (0-1)
+  positionEasing: 'linear', // 'linear' | 'easeIn' | 'easeOut' | 'easeInOut' | 'easeInQuad' | 'easeOutQuad' | 'easeInOutQuad' | 'easeInCubic' | 'easeOutCubic' | 'easeInOutCubic' | 'easeInQuart' | 'easeOutQuart' | 'easeInOutQuart'
   containToCell: false, // prevent letters from overlapping
 
   // Opacity Animation
@@ -108,6 +114,12 @@ export const uploadedFonts = [];
 // Animation curves
 export const CURVES = {
   sine: (t) => (Math.sin(t) + 1) / 2,
+  doubleSinusoid: (t) => {
+    // Combines two sine waves at different frequencies for a more complex wave pattern
+    const primary = Math.sin(t);
+    const secondary = Math.sin(t * 2.3) * 0.3;
+    return (primary + secondary + 1) / 2;
+  },
   bounce: (t) => {
     const x = (Math.sin(t) + 1) / 2;
     return Math.abs(Math.sin(x * Math.PI * 2.5)) * x;
@@ -121,6 +133,31 @@ export const CURVES = {
     const x = (Math.sin(t) + 1) / 2;
     return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
   },
+  noise: (t, intensity = 0.3) => {
+    // Pseudo-random noise based on sine functions
+    // Lower frequency and amplitude for subtler noise
+    const n = Math.sin(t * 5.9898 + t * 38.233) * 43758.5453;
+    const raw = (n - Math.floor(n));
+    // Blend between 0.5 (centered) and raw noise based on intensity
+    return 0.5 + (raw - 0.5) * intensity;
+  },
+};
+
+// Easing functions (applied to time before passing to curve)
+export const EASINGS = {
+  linear: (t) => t,
+  easeIn: (t) => t * t,
+  easeOut: (t) => t * (2 - t),
+  easeInOut: (t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
+  easeInQuad: (t) => t * t,
+  easeOutQuad: (t) => t * (2 - t),
+  easeInOutQuad: (t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
+  easeInCubic: (t) => t * t * t,
+  easeOutCubic: (t) => (--t) * t * t + 1,
+  easeInOutCubic: (t) => t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1,
+  easeInQuart: (t) => t * t * t * t,
+  easeOutQuart: (t) => 1 - (--t) * t * t * t,
+  easeInOutQuart: (t) => t < 0.5 ? 8 * t * t * t * t : 1 - 8 * (--t) * t * t * t,
 };
 
 // Sequence patterns
