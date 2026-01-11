@@ -1,92 +1,43 @@
-// Default parameters
+// Simplified parameters - focused on staggered type compositions
 export const PARAMS = {
   // Text
   text: 'hello world',
   mode: 'letter', // 'letter' | 'word'
   font: 'Space Mono',
   fontSize: 36,
-  letterSpacing: 0,
 
-  // Distribution
-  distribution: 'grid', // 'grid' | 'circular' | 'spiral' | 'random' | 'wave'
+  // Grid
   columns: 20,
   rows: 12,
-  centerX: 0.5,
-  centerY: 0.5,
-  radius: 300,
-  spiralTightness: 0.5,
-  randomSeed: 42,
 
-  // Wave
-  waveType: 'sine', // 'sine' | 'triangle' | 'noise' | 'bounce' | 'square'
-  waveDirection: 'horizontal', // 'horizontal' | 'vertical' | 'radial' | 'both'
+  // Sequencing (the core feature)
+  sequenceDelay: 0.03,
+  sequencePattern: 'wave', // 'linear' | 'centerOut' | 'wave' | 'spiral' | 'random'
+  globalSpeed: 1,
 
-  // Transforms - Position
+  // Scale Animation
+  scaleEnabled: true,
+  scaleMin: 0.3,
+  scaleMax: 1.2,
+  scaleCurve: 'bounce', // 'sine' | 'bounce' | 'elastic' | 'snap' | 'smooth'
+
+  // Position Animation
   positionEnabled: true,
-  positionAmplitudeX: 30,
+  positionAmplitudeX: 20,
   positionAmplitudeY: 0,
-  positionFrequency: 0.15,
-  positionSpeed: 0.03,
-  positionPhase: 0.5,
-
-  // Transforms - Scale
-  scaleEnabled: false,
-  scaleMin: 0.2,
-  scaleMax: 2.0,
-  scaleFrequency: 0.1,
-  scaleSpeed: 0.02,
-  scalePhase: 0.3,
-  scaleMode: 'sine', // 'sine' | 'doubleSine' | 'pulse' | 'bounce' | 'steps' | 'random' | 'breathe'
-  scaleDirection: 'radial', // 'horizontal' | 'vertical' | 'radial' | 'diagonal'
-
-  // Transforms - Rotation
-  rotationEnabled: false,
-  rotationAmplitude: 45, // degrees
-  rotationFrequency: 0.1,
-  rotationSpeed: 0.02,
-  rotationPhase: 0.4,
-
-  // Transforms - Opacity
-  opacityEnabled: false,
-  opacityAmplitude: 0.5,
-  opacityFrequency: 0.1,
-  opacitySpeed: 0.02,
-  opacityPhase: 0.2,
-  opacityBase: 1,
-  opacityMin: 0.1,
-
-  // Transforms - Depth (Z)
-  depthEnabled: false,
-  depthAmplitude: 200,
-  depthFrequency: 0.1,
-  depthSpeed: 0.02,
-  depthPhase: 0.3,
-  depthPerspective: 800, // perspective distance
-  depthScaleEffect: true, // scale based on Z
-  depthOpacityEffect: true, // fade based on Z
-
-  // ASCII Density
-  asciiMode: false,
-  asciiChars: ' .:-=+*#%@',
-  asciiDensityWave: false,
+  positionCurve: 'sine', // 'sine' | 'bounce' | 'elastic' | 'snap' | 'smooth'
+  containToCell: false, // prevent letters from overlapping
 
   // Colors
   backgroundColor: '#0a0a0a',
   textColor: '#ffffff',
-  colorMode: 'solid', // 'solid' | 'rainbow' | 'gradient' | 'depth'
-  gradientStart: '#ff0000',
-  gradientEnd: '#0000ff',
-
-  // Global
-  globalSpeed: 1,
-  paused: false,
 
   // Export
   exportWidth: 1920,
   exportHeight: 1080,
   exportFps: 30,
-  exportDuration: 5, // seconds
-  exportQuality: 0.8, // 0-1
+  exportDuration: 5,
+  exportQuality: 0.8,
 };
 
 // Available fonts
@@ -97,15 +48,25 @@ export const FONTS = [
   'Inter',
   'Space Grotesk',
   'Bebas Neue',
-  'Playfair Display',
 ];
 
-// ASCII character sets
-export const ASCII_SETS = {
-  'Standard': ' .:-=+*#%@',
-  'Blocks': ' ░▒▓█',
-  'Dots': ' ·•●',
-  'Lines': ' |-/\\+',
-  'Numbers': '0123456789',
-  'Binary': '01',
+// Animation curves
+export const CURVES = {
+  sine: (t) => (Math.sin(t) + 1) / 2,
+  bounce: (t) => {
+    const x = (Math.sin(t) + 1) / 2;
+    return Math.abs(Math.sin(x * Math.PI * 2.5)) * x;
+  },
+  elastic: (t) => {
+    const x = (Math.sin(t) + 1) / 2;
+    return Math.pow(2, -10 * x) * Math.sin((x * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1;
+  },
+  snap: (t) => Math.sin(t) > 0 ? 1 : 0,
+  smooth: (t) => {
+    const x = (Math.sin(t) + 1) / 2;
+    return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+  },
 };
+
+// Sequence patterns
+export const PATTERNS = ['linear', 'centerOut', 'wave', 'spiral', 'random'];
