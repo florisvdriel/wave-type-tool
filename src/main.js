@@ -10,6 +10,7 @@ let time = 0;
 let p5Instance = null;
 let currentItems = [];
 let isExporting = false;
+let canvasContainer = null;
 
 /**
  * Parse text into characters or words
@@ -22,11 +23,11 @@ function parseText(text, mode) {
 }
 
 /**
- * Create grid layout
+ * Create grid layout with spacing adjustments
  */
 function createGrid(chars, params, width, height) {
   const items = [];
-  const { columns, rows } = params;
+  const { columns, rows, tracking, lineSpacing } = params;
   const cellWidth = width / columns;
   const cellHeight = height / rows;
 
@@ -35,8 +36,8 @@ function createGrid(chars, params, width, height) {
     for (let col = 0; col < columns; col++) {
       items.push({
         char: chars[charIndex % chars.length],
-        x: col * cellWidth + cellWidth / 2,
-        y: row * cellHeight + cellHeight / 2,
+        x: col * cellWidth + cellWidth / 2 + tracking,
+        y: row * cellHeight + cellHeight / 2 + lineSpacing,
         row,
         col,
         totalRows: rows,
@@ -48,6 +49,19 @@ function createGrid(chars, params, width, height) {
     }
   }
   return items;
+}
+
+/**
+ * Handle transparency change
+ */
+function handleTransparencyChange(isTransparent) {
+  if (canvasContainer) {
+    if (isTransparent) {
+      canvasContainer.classList.add('transparent-bg');
+    } else {
+      canvasContainer.classList.remove('transparent-bg');
+    }
+  }
 }
 
 // p5.js sketch
@@ -62,7 +76,13 @@ const sketch = (p) => {
   p.draw = () => {
     if (isExporting) return;
 
-    p.background(PARAMS.backgroundColor);
+    // Handle transparent background
+    if (PARAMS.backgroundTransparent) {
+      p.clear();
+    } else {
+      p.background(PARAMS.backgroundColor);
+    }
+
     renderFrame(p, time);
     time += PARAMS.globalSpeed;
   };
@@ -80,7 +100,7 @@ function renderFrame(p, t) {
   const items = createGrid(chars, PARAMS, p.width, p.height);
 
   for (let i = 0; i < items.length; i++) {
-    items[i].transformed = applyTransforms(items[i], i, t, PARAMS);
+    items[i].transformed = applyTransforms(items[i], i, t, PARAMS, p);
   }
 
   currentItems = items;
@@ -91,16 +111,23 @@ function renderFrame(p, t) {
     const { char, transformed } = item;
     if (!transformed) continue;
 
-    let { x, y, scale, opacity } = transformed;
+    let { x, y, scale, opacity, rotation } = transformed;
     if (!isFinite(x)) x = 0;
     if (!isFinite(y)) y = 0;
     if (!isFinite(scale) || scale <= 0) scale = 1;
     if (!isFinite(opacity)) opacity = 1;
+    if (!isFinite(rotation)) rotation = 0;
 
     p.push();
     p.translate(x, y);
+    p.rotate(p.radians(rotation));
     p.scale(scale);
-    p.fill(PARAMS.textColor);
+
+    // Apply opacity
+    const color = p.color(PARAMS.textColor);
+    color.setAlpha(opacity * 255);
+    p.fill(color);
+
     p.textSize(PARAMS.fontSize);
     p.text(char, 0, 0);
     p.pop();
@@ -108,12 +135,17 @@ function renderFrame(p, t) {
 }
 
 // Render to canvas (for export)
-async function renderFrameToCanvas(ctx, canvas, t, params) {
+async function renderFrameToCanvas(ctx, canvas, t, params, p5Ref) {
   const width = canvas.width;
   const height = canvas.height;
 
-  ctx.fillStyle = params.backgroundColor;
-  ctx.fillRect(0, 0, width, height);
+  // Handle transparent background
+  if (params.backgroundTransparent) {
+    ctx.clearRect(0, 0, width, height);
+  } else {
+    ctx.fillStyle = params.backgroundColor;
+    ctx.fillRect(0, 0, width, height);
+  }
 
   const chars = parseText(params.text, params.mode);
   if (chars.length === 0) return;
@@ -121,7 +153,7 @@ async function renderFrameToCanvas(ctx, canvas, t, params) {
   const items = createGrid(chars, params, width, height);
 
   for (let i = 0; i < items.length; i++) {
-    items[i].transformed = applyTransforms(items[i], i, t, params);
+    items[i].transformed = applyTransforms(items[i], i, t, params, p5Ref);
   }
 
   ctx.textAlign = 'center';
@@ -131,15 +163,21 @@ async function renderFrameToCanvas(ctx, canvas, t, params) {
     const { char, transformed } = item;
     if (!transformed) continue;
 
-    let { x, y, scale, opacity } = transformed;
+    let { x, y, scale, opacity, rotation } = transformed;
     if (!isFinite(x)) x = 0;
     if (!isFinite(y)) y = 0;
     if (!isFinite(scale) || scale <= 0) scale = 1;
+    if (!isFinite(opacity)) opacity = 1;
+    if (!isFinite(rotation)) rotation = 0;
 
     ctx.save();
     ctx.translate(x, y);
+    ctx.rotate(rotation * Math.PI / 180);
     ctx.scale(scale, scale);
     ctx.font = `${params.fontSize}px "${params.font}"`;
+
+    // Apply opacity
+    ctx.globalAlpha = opacity;
     ctx.fillStyle = params.textColor;
     ctx.fillText(char, 0, 0);
     ctx.restore();
@@ -149,7 +187,7 @@ async function renderFrameToCanvas(ctx, canvas, t, params) {
 // Export handler
 async function handleExport(type, onProgress) {
   if (type === 'png') {
-    exportPNG(p5Instance, 'wave-type');
+    exportPNG(p5Instance, 'wave-type', PARAMS.backgroundTransparent);
   } else if (type === 'svg') {
     exportSVG(currentItems, PARAMS, p5Instance.width, p5Instance.height, 'wave-type');
   } else if (type === 'mp4') {
@@ -165,7 +203,7 @@ async function handleExport(type, onProgress) {
           duration: PARAMS.exportDuration,
           quality: PARAMS.exportQuality,
         },
-        renderFrameToCanvas,
+        (ctx, canvas, t, params) => renderFrameToCanvas(ctx, canvas, t, params, p5Instance),
         { ...PARAMS }
       );
       downloadBlob(blob, 'wave-type.mp4');
@@ -181,8 +219,13 @@ async function handleExport(type, onProgress) {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+  canvasContainer = document.getElementById('canvas-container');
   p5Instance = new p5(sketch);
-  initControls(document.getElementById('controls'), handleExport);
+  initControls(
+    document.getElementById('controls'),
+    handleExport,
+    handleTransparencyChange
+  );
 });
 
 window.PARAMS = PARAMS;
