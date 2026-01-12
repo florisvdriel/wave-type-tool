@@ -139,11 +139,19 @@ function createFontDropZone(container) {
   container.appendChild(dropZone);
 }
 
-export const initControls = (container, onExport, onTransparencyChange) => {
+export const initControls = (container, onExport, onTransparencyChange, onRedraw) => {
   pane = new Pane({
     container,
     title: 'Wave Type',
   });
+
+  // Performance: Trigger redraw on any parameter change
+  if (onRedraw) {
+    pane.on('change', () => {
+      onRedraw();
+    });
+  }
+
 
   // ===== PRESETS =====
   const presetFolder = pane.addFolder({ title: 'Presets', expanded: true });

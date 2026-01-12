@@ -19,7 +19,7 @@ const noise = (x, y, z, p5Instance) => {
  * This creates the flowing wave effect where all letters animate together
  * but at different points in the wave based on their grid position
  */
-const getSpatialPhase = (item, params) => {
+export const getSpatialPhase = (item, params) => {
   const { row, col, totalRows, totalCols } = item;
   const { sequencePattern, waveCycles, linearDirection, spiralDensity, rowPhaseOffset, colPhaseOffset } = params;
 
@@ -120,8 +120,8 @@ const getSpatialPhase = (item, params) => {
  * Apply all transforms to a single item
  */
 export const applyTransforms = (item, index, time, params, p5Instance) => {
-  // Get spatial phase (creates the flowing wave effect)
-  const spatialPhase = getSpatialPhase(item, params);
+  // Use precomputed spatial phase if available (performance optimization)
+  const spatialPhase = item.spatialPhase ?? getSpatialPhase(item, params);
 
   // Use global time (all letters animate together, phase creates the wave)
   const t = time * 0.05 * params.globalSpeed;
