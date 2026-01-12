@@ -152,6 +152,7 @@ export const initControls = (container, onExport, onTransparencyChange, onRedraw
     });
   }
 
+
   // ===== PRESETS =====
   const presetFolder = pane.addFolder({ title: 'Presets', expanded: true });
 
