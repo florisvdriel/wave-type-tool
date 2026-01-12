@@ -1,6 +1,6 @@
 import p5 from 'p5';
 import { PARAMS } from './config.js';
-import { applyTransforms } from './transforms/index.js';
+import { applyTransforms, getSpatialPhase } from './transforms/index.js';
 import { initControls } from './controls.js';
 import { exportPNG } from './export/png.js';
 import { exportSVG } from './export/svg.js';
@@ -11,6 +11,51 @@ let p5Instance = null;
 let currentItems = [];
 let isExporting = false;
 let canvasContainer = null;
+
+// Performance optimization: Grid caching
+let gridCache = null;
+let gridCacheKey = null;
+let spatialPhaseCacheKey = null;
+let needsRedraw = true;
+
+/**
+ * Generate cache key for grid (invalidates when grid structure changes)
+ */
+function getGridCacheKey(params, width, height) {
+  return `${params.text}|${params.mode}|${params.textDistribution}|${params.columns}|${params.rows}|${params.tracking}|${params.lineSpacing}|${width}|${height}`;
+}
+
+/**
+ * Generate cache key for spatial phases (invalidates when sequence params change)
+ */
+function getSpatialPhaseCacheKey(params) {
+  return `${params.sequencePattern}|${params.waveCycles}|${params.linearDirection}|${params.spiralDensity}|${params.rowPhaseOffset}|${params.colPhaseOffset}`;
+}
+
+/**
+ * Precompute spatial phases for all items (avoids per-frame trig calculations)
+ */
+function precomputeSpatialPhases(items, params) {
+  for (const item of items) {
+    item.spatialPhase = getSpatialPhase(item, params);
+  }
+}
+
+/**
+ * Mark canvas as needing redraw (called from controls)
+ */
+export function markNeedsRedraw() {
+  needsRedraw = true;
+}
+
+/**
+ * Invalidate grid cache (called when structure changes)
+ */
+export function invalidateGridCache() {
+  gridCacheKey = null;
+  spatialPhaseCacheKey = null;
+  needsRedraw = true;
+}
 
 /**
  * Parse text into characters or words
@@ -94,6 +139,12 @@ const sketch = (p) => {
   p.draw = () => {
     if (isExporting) return;
 
+    // Performance: Skip frame if nothing changed and no animation enabled
+    const isAnimating = PARAMS.scaleEnabled || PARAMS.positionEnabled ||
+                        PARAMS.opacityEnabled || PARAMS.jitterEnabled;
+    if (!needsRedraw && !isAnimating) return;
+    needsRedraw = false;
+
     // Handle transparent background
     if (PARAMS.backgroundTransparent) {
       p.clear();
@@ -106,6 +157,8 @@ const sketch = (p) => {
   };
 
   p.windowResized = () => {
+    gridCacheKey = null; // Invalidate cache on resize
+    needsRedraw = true;
     p.resizeCanvas(p.windowWidth, p.windowHeight);
   };
 };
@@ -115,7 +168,23 @@ function renderFrame(p, t) {
   const chars = parseText(PARAMS.text, PARAMS.mode);
   if (chars.length === 0) return;
 
-  const items = createGrid(chars, PARAMS, p.width, p.height);
+  // Performance: Cache grid - only recreate when structure changes
+  const newGridKey = getGridCacheKey(PARAMS, p.width, p.height);
+  const newPhaseKey = getSpatialPhaseCacheKey(PARAMS);
+
+  if (gridCacheKey !== newGridKey) {
+    gridCache = createGrid(chars, PARAMS, p.width, p.height);
+    gridCacheKey = newGridKey;
+    // Also recompute spatial phases when grid changes
+    precomputeSpatialPhases(gridCache, PARAMS);
+    spatialPhaseCacheKey = newPhaseKey;
+  } else if (spatialPhaseCacheKey !== newPhaseKey) {
+    // Grid unchanged but sequence params changed - recompute phases only
+    precomputeSpatialPhases(gridCache, PARAMS);
+    spatialPhaseCacheKey = newPhaseKey;
+  }
+
+  const items = gridCache;
 
   for (let i = 0; i < items.length; i++) {
     items[i].transformed = applyTransforms(items[i], i, t, PARAMS, p);
@@ -242,7 +311,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initControls(
     document.getElementById('controls'),
     handleExport,
-    handleTransparencyChange
+    handleTransparencyChange,
+    markNeedsRedraw
   );
 });
 
