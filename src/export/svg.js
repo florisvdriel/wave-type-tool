@@ -6,11 +6,14 @@
 export const exportSVG = (items, params, width, height, filename = 'wave-type') => {
   const svgNS = 'http://www.w3.org/2000/svg';
 
-  // Create SVG element
+  // Create SVG element with optional background
+  const backgroundRect = params.backgroundTransparent
+    ? ''
+    : `  <rect width="100%" height="100%" fill="${params.backgroundColor}"/>\n`;
+
   let svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="${svgNS}" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <rect width="100%" height="100%" fill="${params.backgroundColor}"/>
-  <style>
+${backgroundRect}  <style>
     @import url('https://fonts.googleapis.com/css2?family=${params.font.replace(/ /g, '+')}:wght@400;700&amp;display=swap');
     text { font-family: '${params.font}', monospace; }
   </style>
@@ -31,20 +34,16 @@ export const exportSVG = (items, params, width, height, filename = 'wave-type') 
   for (const item of sortedItems) {
     if (!item.transformed) continue;
 
-    const { x, y, scale, rotation, opacity } = item.transformed;
+    const { x, y, scale, opacity } = item.transformed;
     const { char } = item;
 
     if (opacity <= 0.01) continue;
 
     // Get color
     const color = getColorForSVG(item, params);
-    const rotationDeg = (rotation || 0) * (180 / Math.PI);
 
     // Build transform string
     let transform = `translate(${x.toFixed(2)}, ${y.toFixed(2)})`;
-    if (rotationDeg !== 0) {
-      transform += ` rotate(${rotationDeg.toFixed(2)})`;
-    }
     if (scale !== 1) {
       transform += ` scale(${scale.toFixed(3)})`;
     }
