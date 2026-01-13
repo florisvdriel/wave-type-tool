@@ -1,5 +1,5 @@
 import { Pane } from 'tweakpane';
-import { PARAMS, FONTS, PATTERNS, uploadedFonts } from './config.js';
+import { PARAMS, FONTS, PATTERNS, uploadedFonts, ASPECT_RATIOS } from './config.js';
 import {
   BUILTIN_PRESETS,
   applyPreset,
@@ -139,7 +139,7 @@ function createFontDropZone(container) {
   container.appendChild(dropZone);
 }
 
-export const initControls = (container, onExport, onTransparencyChange, onRedraw) => {
+export const initControls = (container, onExport, onTransparencyChange, onRedraw, onAspectRatioChange) => {
   pane = new Pane({
     container,
     title: 'Wave Type',
@@ -241,6 +241,22 @@ export const initControls = (container, onExport, onTransparencyChange, onRedraw
     presetState.selected = '';
     pane.refresh();
     showToast('Reset to defaults', false);
+  });
+
+  // ===== CANVAS =====
+  const canvasFolder = pane.addFolder({ title: 'Canvas', expanded: true });
+
+  // Build aspect ratio options object
+  const aspectRatioOptions = {};
+  Object.keys(ASPECT_RATIOS).forEach(key => {
+    aspectRatioOptions[key] = key;
+  });
+
+  canvasFolder.addBinding(PARAMS, 'aspectRatio', {
+    label: 'Aspect Ratio',
+    options: aspectRatioOptions,
+  }).on('change', () => {
+    if (onAspectRatioChange) onAspectRatioChange();
   });
 
   // ===== TEXT =====

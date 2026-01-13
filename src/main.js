@@ -1,5 +1,5 @@
 import p5 from 'p5';
-import { PARAMS } from './config.js';
+import { PARAMS, ASPECT_RATIOS } from './config.js';
 import { applyTransforms, getSpatialPhase } from './transforms/index.js';
 import { initControls } from './controls.js';
 import { exportPNG } from './export/png.js';
@@ -33,6 +33,36 @@ function getSpatialPhaseCacheKey(params) {
 }
 
 /**
+ * Calculate canvas dimensions based on aspect ratio and window size
+ */
+function calculateCanvasDimensions(windowWidth, windowHeight, aspectRatio) {
+  const ratio = ASPECT_RATIOS[aspectRatio] || 1;
+
+  // Account for controls panel width
+  const CONTROLS_WIDTH = 312; // 280px panel + 32px padding
+  const CANVAS_PADDING = 40;
+
+  // Calculate available space (viewport minus controls)
+  const availableWidth = windowWidth - CONTROLS_WIDTH;
+  const availableHeight = windowHeight;
+
+  // Apply padding within canvas area
+  const maxWidth = availableWidth - CANVAS_PADDING * 2;
+  const maxHeight = availableHeight - CANVAS_PADDING * 2;
+
+  let width, height;
+  if (maxWidth / maxHeight > ratio) {
+    height = maxHeight;
+    width = height * ratio;
+  } else {
+    width = maxWidth;
+    height = width / ratio;
+  }
+
+  return { width: Math.floor(width), height: Math.floor(height) };
+}
+
+/**
  * Precompute spatial phases for all items (avoids per-frame trig calculations)
  */
 function precomputeSpatialPhases(items, params) {
@@ -55,6 +85,20 @@ export function invalidateGridCache() {
   gridCacheKey = null;
   spatialPhaseCacheKey = null;
   needsRedraw = true;
+}
+
+/**
+ * Handle aspect ratio change (resize canvas)
+ */
+function handleAspectRatioChange() {
+  if (p5Instance) {
+    const { width, height } = calculateCanvasDimensions(
+      p5Instance.windowWidth, p5Instance.windowHeight, PARAMS.aspectRatio
+    );
+    gridCacheKey = null;
+    needsRedraw = true;
+    p5Instance.resizeCanvas(width, height);
+  }
 }
 
 /**
@@ -130,7 +174,10 @@ function handleTransparencyChange(isTransparent) {
 // p5.js sketch
 const sketch = (p) => {
   p.setup = () => {
-    const canvas = p.createCanvas(p.windowWidth, p.windowHeight);
+    const { width, height } = calculateCanvasDimensions(
+      p.windowWidth, p.windowHeight, PARAMS.aspectRatio
+    );
+    const canvas = p.createCanvas(width, height);
     canvas.parent('canvas-container');
     p.textAlign(p.CENTER, p.CENTER);
     p.noStroke();
@@ -157,9 +204,12 @@ const sketch = (p) => {
   };
 
   p.windowResized = () => {
+    const { width, height } = calculateCanvasDimensions(
+      p.windowWidth, p.windowHeight, PARAMS.aspectRatio
+    );
     gridCacheKey = null; // Invalidate cache on resize
     needsRedraw = true;
-    p.resizeCanvas(p.windowWidth, p.windowHeight);
+    p.resizeCanvas(width, height);
   };
 };
 
@@ -312,7 +362,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('controls'),
     handleExport,
     handleTransparencyChange,
-    markNeedsRedraw
+    markNeedsRedraw,
+    handleAspectRatioChange
   );
 });
 
