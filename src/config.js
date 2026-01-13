@@ -1,5 +1,8 @@
 // Parameters for staggered type compositions
 export const PARAMS = {
+  // Canvas
+  aspectRatio: '1:1',
+
   // Text
   text: 'HELLO WORLD',
   mode: 'letter', // 'letter' | 'word'
@@ -66,6 +69,21 @@ export const PARAMS = {
   exportFps: 30,
   exportDuration: 5,
   exportQuality: 0.8,
+};
+
+// Aspect ratio presets
+export const ASPECT_RATIOS = {
+  '2:1': 2 / 1,
+  '16:9': 16 / 9,
+  '3:2': 3 / 2,
+  '4:3': 4 / 3,
+  '5:4': 5 / 4,
+  '1:1': 1,
+  '4:5': 4 / 5,
+  '3:4': 3 / 4,
+  '2:3': 2 / 3,
+  '9:16': 9 / 16,
+  '1:2': 1 / 2,
 };
 
 // Available fonts - curated for generative typography
