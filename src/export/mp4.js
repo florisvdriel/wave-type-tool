@@ -4,6 +4,32 @@ let isRecording = false;
 let recordingProgress = 0;
 let onProgressCallback = null;
 
+/**
+ * Ensure font is loaded for Canvas 2D rendering
+ */
+async function ensureFontLoaded(fontName) {
+  try {
+    // Check if font is already loaded
+    const testString = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const loaded = document.fonts.check(`16px "${fontName}"`, testString);
+
+    if (!loaded) {
+      // Wait for font to load (with timeout)
+      await Promise.race([
+        document.fonts.load(`16px "${fontName}"`, testString),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Font load timeout')), 5000)
+        )
+      ]);
+    }
+
+    return true;
+  } catch (error) {
+    console.warn(`Font "${fontName}" may not be fully loaded:`, error);
+    return false;
+  }
+}
+
 export const getRecordingState = () => ({
   isRecording,
   progress: recordingProgress,
@@ -18,9 +44,10 @@ export const setProgressCallback = (callback) => {
  * @param {Object} options Recording options
  * @param {Function} renderFrame Function that renders a single frame
  * @param {Object} params Current parameters
+ * @param {number} previewWidth Width of the preview canvas (for scale calculation)
  * @returns {Promise<Blob>} MP4 blob
  */
-export const recordMP4 = async (options, renderFrame, params) => {
+export const recordMP4 = async (options, renderFrame, params, previewWidth = 800) => {
   const {
     width = 1920,
     height = 1080,
@@ -32,6 +59,12 @@ export const recordMP4 = async (options, renderFrame, params) => {
   isRecording = true;
   recordingProgress = 0;
 
+  // Ensure font is loaded before rendering
+  await ensureFontLoaded(params.font);
+
+  // Calculate export scale based on preview vs export resolution
+  const exportScale = width / previewWidth;
+
   const totalFrames = Math.floor(fps * duration);
   const frameDuration = 1000000 / fps; // microseconds
 
@@ -39,7 +72,10 @@ export const recordMP4 = async (options, renderFrame, params) => {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', {
+    alpha: params.backgroundTransparent,
+    desynchronized: true, // Performance optimization
+  });
 
   // Calculate bitrate based on quality (1-10 Mbps range)
   const bitrate = Math.floor(1000000 + quality * 9000000);
@@ -94,8 +130,8 @@ export const recordMP4 = async (options, renderFrame, params) => {
         onProgressCallback(recordingProgress);
       }
 
-      // Render frame to offscreen canvas
-      await renderFrame(ctx, canvas, currentTime, params);
+      // Render frame to offscreen canvas with export scale
+      await renderFrame(ctx, canvas, currentTime, params, exportScale);
 
       // Create video frame
       const videoFrame = new VideoFrame(canvas, {

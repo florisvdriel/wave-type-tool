@@ -69,6 +69,23 @@ export const PARAMS = {
   exportFps: 30,
   exportDuration: 5,
   exportQuality: 0.8,
+
+  // Vector Export (for SVG with embedded paths)
+  useVectorExport: true, // Feature flag: export as vector paths vs text elements
+
+  // Extrusion (Clone Stack Effect)
+  extrusionEnabled: false,
+  cloneCount: 20, // 1-100, hard limit 100
+  cloneMode: 'linear', // 'linear' | 'wave'
+  cloneDensityX: 1, // px offset per clone (linear mode)
+  cloneDensityY: 1,
+  cloneWaveAmplitude: 20, // px (wave mode)
+  cloneWaveFrequency: 0.2, // radians per clone (wave mode)
+  cloneOpacityDecay: 0.95, // multiplier per clone (0.9 = 90% of previous)
+  cloneScaleDecay: 1.0, // multiplier per clone (1.0 = no change)
+
+  // Vector rendering detail
+  sampleFactor: 0.5, // 0.1 (low detail) to 1.0 (high detail) for textToPoints
 };
 
 // Aspect ratio presets

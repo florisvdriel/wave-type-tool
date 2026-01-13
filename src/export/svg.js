@@ -1,9 +1,58 @@
 /**
  * SVG Export Module
  * Creates SVG from current canvas state
+ *
+ * Supports two modes:
+ * 1. Vector export (useVectorExport=true): Embeds font paths using textToPoints
+ * 2. Text export (default fallback): Uses <text> elements with CSS font import
  */
 
-export const exportSVG = (items, params, width, height, filename = 'wave-type') => {
+import { fontManager, glyphCache, generateVectorSVG, estimateSVGSize } from '../vector/index.js';
+
+export const exportSVG = async (items, params, width, height, filename = 'wave-type') => {
+  // Try vector export if enabled
+  if (params.useVectorExport) {
+    try {
+      // Ensure font is loaded for vector export
+      const font = fontManager.getFont(params.font);
+      if (!font) {
+        console.log('SVG Export: Loading font for vector export...');
+        await fontManager.loadFont(params.font);
+      }
+
+      // Preload glyphs for all characters in items
+      const uniqueChars = [...new Set(items.map(i => i.char))];
+      for (const char of uniqueChars) {
+        glyphCache.getGlyph(params.font, char, params.fontSize, params.sampleFactor);
+      }
+
+      // Check estimated file size
+      const estimatedSize = estimateSVGSize(items, params);
+      if (estimatedSize > 2 * 1024 * 1024) {
+        console.warn(`SVG Export: Estimated size ${(estimatedSize / 1024 / 1024).toFixed(1)}MB exceeds 2MB limit`);
+      } else if (estimatedSize > 500 * 1024) {
+        console.warn(`SVG Export: Estimated size ${(estimatedSize / 1024).toFixed(0)}KB - file may be large`);
+      }
+
+      // Generate vector SVG
+      const svg = generateVectorSVG(items, params, width, height);
+      downloadSVG(svg, filename);
+      console.log('SVG Export: Vector export successful');
+      return true;
+    } catch (error) {
+      console.warn('SVG Export: Vector export failed, falling back to text mode:', error);
+      // Fall through to text-based export
+    }
+  }
+
+  // Text-based export (original implementation)
+  return exportTextSVG(items, params, width, height, filename);
+};
+
+/**
+ * Original text-based SVG export
+ */
+const exportTextSVG = (items, params, width, height, filename) => {
   const svgNS = 'http://www.w3.org/2000/svg';
 
   // Create SVG element with optional background
@@ -34,7 +83,7 @@ ${backgroundRect}  <style>
   for (const item of sortedItems) {
     if (!item.transformed) continue;
 
-    const { x, y, scale, opacity } = item.transformed;
+    const { x, y, scale, opacity, rotation } = item.transformed;
     const { char } = item;
 
     if (opacity <= 0.01) continue;
@@ -44,6 +93,9 @@ ${backgroundRect}  <style>
 
     // Build transform string
     let transform = `translate(${x.toFixed(2)}, ${y.toFixed(2)})`;
+    if (rotation && rotation !== 0) {
+      transform += ` rotate(${rotation.toFixed(2)})`;
+    }
     if (scale !== 1) {
       transform += ` scale(${scale.toFixed(3)})`;
     }

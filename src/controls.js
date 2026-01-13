@@ -480,6 +480,88 @@ export const initControls = (container, onExport, onTransparencyChange, onRedraw
   jitterFolder.addBinding(PARAMS, 'jitterAmount', { label: 'Amount', min: 0, max: 50, step: 1 });
   jitterFolder.addBinding(PARAMS, 'jitterSpeed', { label: 'Speed', min: 0.01, max: 2, step: 0.01 });
 
+  // ===== EXTRUSION (Clone Stack Effect) =====
+  const extrusionFolder = pane.addFolder({ title: 'Extrusion', expanded: false });
+  extrusionFolder.addBinding(PARAMS, 'extrusionEnabled', { label: 'Enabled' });
+  extrusionFolder.addBinding(PARAMS, 'cloneCount', {
+    label: 'Clone Count',
+    min: 1,
+    max: 100,
+    step: 1,
+  });
+
+  const cloneModeBinding = extrusionFolder.addBinding(PARAMS, 'cloneMode', {
+    label: 'Mode',
+    options: {
+      'Linear': 'linear',
+      'Wave': 'wave',
+    },
+  });
+
+  // Linear mode controls
+  const cloneDensityXBinding = extrusionFolder.addBinding(PARAMS, 'cloneDensityX', {
+    label: 'Density X',
+    min: -10,
+    max: 10,
+    step: 0.5,
+    hidden: PARAMS.cloneMode !== 'linear',
+  });
+
+  const cloneDensityYBinding = extrusionFolder.addBinding(PARAMS, 'cloneDensityY', {
+    label: 'Density Y',
+    min: -10,
+    max: 10,
+    step: 0.5,
+    hidden: PARAMS.cloneMode !== 'linear',
+  });
+
+  // Wave mode controls
+  const cloneWaveAmplitudeBinding = extrusionFolder.addBinding(PARAMS, 'cloneWaveAmplitude', {
+    label: 'Wave Amplitude',
+    min: 0,
+    max: 100,
+    step: 1,
+    hidden: PARAMS.cloneMode !== 'wave',
+  });
+
+  const cloneWaveFrequencyBinding = extrusionFolder.addBinding(PARAMS, 'cloneWaveFrequency', {
+    label: 'Wave Frequency',
+    min: 0.01,
+    max: 1,
+    step: 0.01,
+    hidden: PARAMS.cloneMode !== 'wave',
+  });
+
+  // Common extrusion controls
+  extrusionFolder.addBinding(PARAMS, 'cloneOpacityDecay', {
+    label: 'Opacity Decay',
+    min: 0.5,
+    max: 1,
+    step: 0.01,
+  });
+
+  extrusionFolder.addBinding(PARAMS, 'cloneScaleDecay', {
+    label: 'Scale Decay',
+    min: 0.9,
+    max: 1.1,
+    step: 0.01,
+  });
+
+  // Update extrusion controls visibility based on mode
+  const updateExtrusionControls = () => {
+    const isLinear = PARAMS.cloneMode === 'linear';
+
+    cloneDensityXBinding.hidden = !isLinear;
+    cloneDensityYBinding.hidden = !isLinear;
+    cloneWaveAmplitudeBinding.hidden = isLinear;
+    cloneWaveFrequencyBinding.hidden = isLinear;
+
+    pane.refresh();
+  };
+
+  cloneModeBinding.on('change', updateExtrusionControls);
+  updateExtrusionControls(); // Initialize visibility
+
   // ===== SPACING =====
   const spacingFolder = pane.addFolder({ title: 'Spacing', expanded: false });
   spacingFolder.addBinding(PARAMS, 'tracking', { label: 'Tracking', min: -50, max: 50, step: 1 });

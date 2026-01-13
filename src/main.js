@@ -5,6 +5,7 @@ import { initControls } from './controls.js';
 import { exportPNG } from './export/png.js';
 import { exportSVG } from './export/svg.js';
 import { recordMP4, downloadBlob, setProgressCallback } from './export/mp4.js';
+import { fontManager, glyphCache } from './vector/index.js';
 
 let time = 0;
 let p5Instance = null;
@@ -18,11 +19,22 @@ let gridCacheKey = null;
 let spatialPhaseCacheKey = null;
 let needsRedraw = true;
 
+// Vector rendering cache
+let glyphPointsCache = new Map(); // char -> points array
+let glyphCacheKey = null; // cache key for glyph invalidation
+
 /**
  * Generate cache key for grid (invalidates when grid structure changes)
  */
 function getGridCacheKey(params, width, height) {
   return `${params.text}|${params.mode}|${params.textDistribution}|${params.columns}|${params.rows}|${params.tracking}|${params.lineSpacing}|${width}|${height}`;
+}
+
+/**
+ * Generate cache key for glyph points (invalidates when font or size changes)
+ */
+function getGlyphCacheKey(params) {
+  return `${params.font}|${params.fontSize}|${params.sampleFactor}`;
 }
 
 /**
@@ -181,6 +193,9 @@ const sketch = (p) => {
     canvas.parent('canvas-container');
     p.textAlign(p.CENTER, p.CENTER);
     p.noStroke();
+
+    // Initialize FontManager with p5 instance for vector export
+    fontManager.setP5Instance(p);
   };
 
   p.draw = () => {
@@ -243,7 +258,12 @@ function renderFrame(p, t) {
   currentItems = items;
   p.textFont(PARAMS.font);
 
-  // Render
+  // Determine clone count
+  const cloneCount = PARAMS.extrusionEnabled
+    ? Math.min(Math.max(1, PARAMS.cloneCount), 100)
+    : 1;
+
+  // Render (with optional extrusion clones)
   for (const item of items) {
     const { char, transformed } = item;
     if (!transformed) continue;
@@ -255,24 +275,45 @@ function renderFrame(p, t) {
     if (!isFinite(opacity)) opacity = 1;
     if (!isFinite(rotation)) rotation = 0;
 
-    p.push();
-    p.translate(x, y);
-    p.rotate(p.radians(rotation));
-    p.scale(scale);
+    // Render clones back-to-front (furthest clone first)
+    for (let c = cloneCount - 1; c >= 0; c--) {
+      // Calculate clone offset based on mode
+      let offsetX = 0, offsetY = 0;
+      if (PARAMS.cloneMode === 'wave') {
+        const phase = c * PARAMS.cloneWaveFrequency + time * 0.05;
+        offsetX = Math.sin(phase) * PARAMS.cloneWaveAmplitude;
+        offsetY = Math.cos(phase) * PARAMS.cloneWaveAmplitude;
+      } else {
+        // Linear mode
+        offsetX = c * PARAMS.cloneDensityX;
+        offsetY = c * PARAMS.cloneDensityY;
+      }
 
-    // Apply opacity
-    const color = p.color(PARAMS.textColor);
-    color.setAlpha(opacity * 255);
-    p.fill(color);
+      // Calculate clone-specific properties
+      const cloneOpacity = opacity * Math.pow(PARAMS.cloneOpacityDecay, c);
+      const cloneScale = scale * Math.pow(PARAMS.cloneScaleDecay, c);
 
-    p.textSize(PARAMS.fontSize);
-    p.text(char, 0, 0);
-    p.pop();
+      if (cloneOpacity <= 0.01) continue;
+
+      p.push();
+      p.translate(x + offsetX, y + offsetY);
+      p.rotate(p.radians(rotation));
+      p.scale(cloneScale);
+
+      // Apply opacity
+      const color = p.color(PARAMS.textColor);
+      color.setAlpha(cloneOpacity * 255);
+      p.fill(color);
+
+      p.textSize(PARAMS.fontSize);
+      p.text(char, 0, 0);
+      p.pop();
+    }
   }
 }
 
 // Render to canvas (for export)
-async function renderFrameToCanvas(ctx, canvas, t, params, p5Ref) {
+async function renderFrameToCanvas(ctx, canvas, t, params, p5Ref, exportScale = 1) {
   const width = canvas.width;
   const height = canvas.height;
 
@@ -293,8 +334,19 @@ async function renderFrameToCanvas(ctx, canvas, t, params, p5Ref) {
     items[i].transformed = applyTransforms(items[i], i, t, params, p5Ref);
   }
 
+  // Text rendering optimizations for crisp export
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  // Scale fontSize proportionally to export resolution
+  const scaledFontSize = params.fontSize * exportScale;
+
+  // Determine clone count
+  const cloneCount = params.extrusionEnabled
+    ? Math.min(Math.max(1, params.cloneCount), 100)
+    : 1;
 
   for (const item of items) {
     const { char, transformed } = item;
@@ -307,17 +359,38 @@ async function renderFrameToCanvas(ctx, canvas, t, params, p5Ref) {
     if (!isFinite(opacity)) opacity = 1;
     if (!isFinite(rotation)) rotation = 0;
 
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(rotation * Math.PI / 180);
-    ctx.scale(scale, scale);
-    ctx.font = `${params.fontSize}px "${params.font}"`;
+    // Render clones back-to-front
+    for (let c = cloneCount - 1; c >= 0; c--) {
+      // Calculate clone offset based on mode
+      let offsetX = 0, offsetY = 0;
+      if (params.cloneMode === 'wave') {
+        const phase = c * params.cloneWaveFrequency + t * 0.05;
+        offsetX = Math.sin(phase) * params.cloneWaveAmplitude;
+        offsetY = Math.cos(phase) * params.cloneWaveAmplitude;
+      } else {
+        // Linear mode
+        offsetX = c * params.cloneDensityX;
+        offsetY = c * params.cloneDensityY;
+      }
 
-    // Apply opacity
-    ctx.globalAlpha = opacity;
-    ctx.fillStyle = params.textColor;
-    ctx.fillText(char, 0, 0);
-    ctx.restore();
+      // Calculate clone-specific properties
+      const cloneOpacity = opacity * Math.pow(params.cloneOpacityDecay, c);
+      const cloneScale = scale * Math.pow(params.cloneScaleDecay, c);
+
+      if (cloneOpacity <= 0.01) continue;
+
+      ctx.save();
+      ctx.translate(x + offsetX, y + offsetY);
+      ctx.rotate(rotation * Math.PI / 180);
+      ctx.scale(cloneScale, cloneScale);
+      ctx.font = `${scaledFontSize}px "${params.font}"`;
+
+      // Apply opacity
+      ctx.globalAlpha = cloneOpacity;
+      ctx.fillStyle = params.textColor;
+      ctx.fillText(char, 0, 0);
+      ctx.restore();
+    }
   }
 }
 
@@ -326,10 +399,19 @@ async function handleExport(type, onProgress) {
   if (type === 'png') {
     exportPNG(p5Instance, 'wave-type', PARAMS.backgroundTransparent);
   } else if (type === 'svg') {
-    exportSVG(currentItems, PARAMS, p5Instance.width, p5Instance.height, 'wave-type');
+    // SVG export is now async (loads fonts for vector export)
+    try {
+      await exportSVG(currentItems, PARAMS, p5Instance.width, p5Instance.height, 'wave-type');
+    } catch (error) {
+      console.error('SVG export failed:', error);
+      alert('SVG export failed: ' + error.message);
+    }
   } else if (type === 'mp4') {
     isExporting = true;
     if (onProgress) setProgressCallback(onProgress);
+
+    // Get current preview width for scale calculation
+    const previewWidth = p5Instance.width;
 
     try {
       const blob = await recordMP4(
@@ -340,8 +422,9 @@ async function handleExport(type, onProgress) {
           duration: PARAMS.exportDuration,
           quality: PARAMS.exportQuality,
         },
-        (ctx, canvas, t, params) => renderFrameToCanvas(ctx, canvas, t, params, p5Instance),
-        { ...PARAMS }
+        (ctx, canvas, t, params, exportScale) => renderFrameToCanvas(ctx, canvas, t, params, p5Instance, exportScale),
+        { ...PARAMS },
+        previewWidth
       );
       downloadBlob(blob, 'wave-type.mp4');
     } catch (error) {
