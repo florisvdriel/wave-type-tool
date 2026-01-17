@@ -39,6 +39,12 @@ export const PARAMS = {
   positionEasing: 'linear', // 'linear' | 'easeIn' | 'easeOut' | 'easeInOut' | 'easeInQuad' | 'easeOutQuad' | 'easeInOutQuad' | 'easeInCubic' | 'easeOutCubic' | 'easeInOutCubic' | 'easeInQuart' | 'easeOutQuart' | 'easeInOutQuart'
   containToCell: false, // prevent letters from overlapping
 
+  // Collision Physics
+  collisionEnabled: false, // Enable collision detection between letters/words
+  collisionStrength: 1.0, // Deflection force multiplier (0.1 - 3.0)
+  collisionDuration: 0.5, // Seconds for bounce animation (0.1 - 2.0)
+  wallBounce: true, // Bounce off canvas edges
+
   // Opacity Animation
   opacityEnabled: false,
   opacityMin: 0.2,
