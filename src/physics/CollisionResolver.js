@@ -10,6 +10,13 @@ const COLLISION_CURVES = {
     return Math.sin(progress * Math.PI);
   },
 
+  // Complex wave with secondary harmonic
+  doubleSinusoid: (progress) => {
+    const primary = Math.sin(progress * Math.PI);
+    const secondary = Math.sin(progress * Math.PI * 2.3) * 0.3;
+    return Math.max(0, primary + secondary);
+  },
+
   // Multiple diminishing bounces
   bounce: (progress) => {
     const t = 1 - progress;

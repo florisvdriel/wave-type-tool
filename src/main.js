@@ -367,6 +367,21 @@ async function renderFrameToCanvas(ctx, canvas, t, params, p5Ref, exportScale = 
     items[i].transformed = applyTransforms(items[i], i, t, params, p5Ref);
   }
 
+  // Collision detection and response (for export)
+  if (params.collisionEnabled) {
+    const collisions = collisionDetector.detectCollisions(items, params, width, height);
+    collisionResolver.resolveCollisions(collisions, items, t, params);
+    collisionResolver.updateCollisionResponses(items, t, params);
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.collisionOffset && item.transformed) {
+        item.transformed.x += item.collisionOffset.x;
+        item.transformed.y += item.collisionOffset.y;
+      }
+    }
+  }
+
   // Text rendering optimizations for crisp export
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -442,6 +457,9 @@ async function handleExport(type, onProgress) {
   } else if (type === 'mp4') {
     isExporting = true;
     if (onProgress) setProgressCallback(onProgress);
+
+    // Reset collision state for clean export
+    collisionResolver.clear();
 
     // Get current preview width for scale calculation
     const previewWidth = p5Instance.width;
