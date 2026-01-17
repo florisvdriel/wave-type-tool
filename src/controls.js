@@ -1,5 +1,12 @@
 import { Pane } from 'tweakpane';
 import { PARAMS, FONTS, PATTERNS, uploadedFonts, ASPECT_RATIOS } from './config.js';
+
+// Calculate export height based on width and aspect ratio
+// Round to even number (required by H.264 encoder)
+function getExportHeight() {
+  const aspectRatio = ASPECT_RATIOS[PARAMS.aspectRatio] || 1;
+  return Math.round(PARAMS.exportWidth / aspectRatio / 2) * 2;
+}
 import {
   BUILTIN_PRESETS,
   applyPreset,
@@ -252,10 +259,11 @@ export const initControls = (container, onExport, onTransparencyChange, onRedraw
     aspectRatioOptions[key] = key;
   });
 
-  canvasFolder.addBinding(PARAMS, 'aspectRatio', {
+  const aspectRatioBinding = canvasFolder.addBinding(PARAMS, 'aspectRatio', {
     label: 'Aspect Ratio',
     options: aspectRatioOptions,
-  }).on('change', () => {
+  });
+  aspectRatioBinding.on('change', () => {
     if (onAspectRatioChange) onAspectRatioChange();
   });
 
@@ -458,6 +466,23 @@ export const initControls = (container, onExport, onTransparencyChange, onRedraw
   positionCurveBinding.on('change', updatePositionControls);
   updatePositionControls(); // Initialize visibility
 
+  // ===== COLLISION =====
+  const collisionFolder = pane.addFolder({ title: 'Collision', expanded: false });
+  collisionFolder.addBinding(PARAMS, 'collisionEnabled', { label: 'Enabled' });
+  collisionFolder.addBinding(PARAMS, 'collisionStrength', {
+    label: 'Strength',
+    min: 0.1,
+    max: 3.0,
+    step: 0.1,
+  });
+  collisionFolder.addBinding(PARAMS, 'collisionDuration', {
+    label: 'Duration',
+    min: 0.1,
+    max: 2.0,
+    step: 0.1,
+  });
+  collisionFolder.addBinding(PARAMS, 'wallBounce', { label: 'Wall Bounce' });
+
   // ===== OPACITY =====
   const opacityFolder = pane.addFolder({ title: 'Opacity', expanded: false });
   opacityFolder.addBinding(PARAMS, 'opacityEnabled', { label: 'Enabled' });
@@ -589,14 +614,30 @@ export const initControls = (container, onExport, onTransparencyChange, onRedraw
 
   // MP4 settings
   const mp4Folder = exportFolder.addFolder({ title: 'MP4', expanded: false });
-  mp4Folder.addBinding(PARAMS, 'exportWidth', {
+
+  // Export height display state (computed from width + aspect ratio)
+  const exportHeightState = { height: getExportHeight() };
+
+  const exportWidthBinding = mp4Folder.addBinding(PARAMS, 'exportWidth', {
     label: 'Width',
     options: { '1280': 1280, '1920': 1920, '2560': 2560, '3840': 3840 },
   });
-  mp4Folder.addBinding(PARAMS, 'exportHeight', {
+
+  const exportHeightBinding = mp4Folder.addBinding(exportHeightState, 'height', {
     label: 'Height',
-    options: { '720': 720, '1080': 1080, '1440': 1440, '2160': 2160 },
+    readonly: true,
+    format: (v) => `${v}px (auto)`,
   });
+
+  // Update height when width or aspect ratio changes
+  const updateExportHeight = () => {
+    exportHeightState.height = getExportHeight();
+    pane.refresh();
+  };
+
+  exportWidthBinding.on('change', updateExportHeight);
+  aspectRatioBinding.on('change', updateExportHeight);
+
   mp4Folder.addBinding(PARAMS, 'exportDuration', { label: 'Duration', min: 1, max: 30, step: 1 });
 
   const exportState = { progress: 0, isExporting: false };

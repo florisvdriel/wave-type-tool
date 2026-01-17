@@ -6,6 +6,7 @@ import { exportPNG } from './export/png.js';
 import { exportSVG } from './export/svg.js';
 import { recordMP4, downloadBlob, setProgressCallback } from './export/mp4.js';
 import { fontManager, glyphCache } from './vector/index.js';
+import { CollisionDetector, CollisionResolver } from './physics/index.js';
 
 let time = 0;
 let p5Instance = null;
@@ -22,6 +23,10 @@ let needsRedraw = true;
 // Vector rendering cache
 let glyphPointsCache = new Map(); // char -> points array
 let glyphCacheKey = null; // cache key for glyph invalidation
+
+// Collision physics
+const collisionDetector = new CollisionDetector();
+const collisionResolver = new CollisionResolver();
 
 /**
  * Generate cache key for grid (invalidates when grid structure changes)
@@ -97,6 +102,8 @@ export function invalidateGridCache() {
   gridCacheKey = null;
   spatialPhaseCacheKey = null;
   needsRedraw = true;
+  // Clear collision states when grid changes
+  collisionResolver.clear();
 }
 
 /**
@@ -253,6 +260,32 @@ function renderFrame(p, t) {
 
   for (let i = 0; i < items.length; i++) {
     items[i].transformed = applyTransforms(items[i], i, t, PARAMS, p);
+  }
+
+  // Collision detection and response
+  if (PARAMS.collisionEnabled) {
+    // Detect collisions
+    const collisions = collisionDetector.detectCollisions(
+      items, PARAMS, p.width, p.height
+    );
+
+    // Resolve new collisions (start collision animations)
+    collisionResolver.resolveCollisions(collisions, items, t, PARAMS);
+
+    // Update ongoing collision responses (calculate offsets)
+    collisionResolver.updateCollisionResponses(items, t, PARAMS);
+
+    // Apply collision offsets to transformed positions
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.collisionOffset && item.transformed) {
+        item.transformed.x += item.collisionOffset.x;
+        item.transformed.y += item.collisionOffset.y;
+      }
+    }
+  } else {
+    // Clear collision state when disabled
+    collisionResolver.clear();
   }
 
   currentItems = items;
@@ -413,11 +446,17 @@ async function handleExport(type, onProgress) {
     // Get current preview width for scale calculation
     const previewWidth = p5Instance.width;
 
+    // Calculate export dimensions respecting aspect ratio
+    // Ensure dimensions are even (required by H.264 encoder)
+    const aspectRatio = ASPECT_RATIOS[PARAMS.aspectRatio] || 1;
+    const exportWidth = PARAMS.exportWidth;
+    const exportHeight = Math.round(exportWidth / aspectRatio / 2) * 2; // Round to even
+
     try {
       const blob = await recordMP4(
         {
-          width: PARAMS.exportWidth,
-          height: PARAMS.exportHeight,
+          width: exportWidth,
+          height: exportHeight,
           fps: PARAMS.exportFps,
           duration: PARAMS.exportDuration,
           quality: PARAMS.exportQuality,

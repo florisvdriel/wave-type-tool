@@ -169,7 +169,10 @@ export const recordMP4 = async (options, renderFrame, params, previewWidth = 800
     return blob;
   } catch (error) {
     isRecording = false;
-    encoder.close();
+    // Only close if not already closed
+    if (encoder.state !== 'closed') {
+      encoder.close();
+    }
     throw error;
   }
 };
