@@ -5,14 +5,15 @@ export const PARAMS = {
 
   // Text
   text: 'HELLO WORLD',
-  mode: 'letter', // 'letter' | 'word'
-  textDistribution: 'repeat', // 'repeat' | 'split-letter' | 'split-word'
+  textMode: 'repeat-letter', // 'repeat-letter' | 'repeat-word' | 'split-letter' | 'split-word'
+  repeatPattern: 'sequential', // 'sequential' | 'mirror' | 'alternating'
   font: 'Inter',
   fontSize: 36,
 
   // Grid
   columns: 20,
   rows: 12,
+  gridMode: 'fill', // 'fill' | 'fixed'
 
   // Sequencing (the core feature)
   waveCycles: 2, // Number of wave cycles across the grid (1-15)

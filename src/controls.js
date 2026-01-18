@@ -270,18 +270,26 @@ export const initControls = (container, onExport, onTransparencyChange, onRedraw
   // ===== TEXT =====
   const textFolder = pane.addFolder({ title: 'Text', expanded: true });
   textFolder.addBinding(PARAMS, 'text', { label: 'Text' });
-  textFolder.addBinding(PARAMS, 'mode', {
+
+  const textModeBinding = textFolder.addBinding(PARAMS, 'textMode', {
     label: 'Mode',
-    options: { 'Letters': 'letter', 'Words': 'word' },
-  });
-  textFolder.addBinding(PARAMS, 'textDistribution', {
-    label: 'Distribution',
     options: {
-      'Repeat': 'repeat',
+      'Repeat by Letter': 'repeat-letter',
+      'Repeat by Word': 'repeat-word',
       'Split by Letter': 'split-letter',
       'Split by Word': 'split-word',
     },
   });
+
+  const repeatPatternBinding = textFolder.addBinding(PARAMS, 'repeatPattern', {
+    label: 'Pattern',
+    options: {
+      'Sequential': 'sequential',
+      'Mirror': 'mirror',
+      'Alternating': 'alternating',
+    },
+  });
+
   fontBinding = textFolder.addBinding(PARAMS, 'font', {
     label: 'Font',
     options: getAllFonts(),
@@ -295,6 +303,15 @@ export const initControls = (container, onExport, onTransparencyChange, onRedraw
   const gridFolder = pane.addFolder({ title: 'Grid', expanded: true });
   gridFolder.addBinding(PARAMS, 'columns', { label: 'Columns', min: 3, max: 150, step: 1 });
   gridFolder.addBinding(PARAMS, 'rows', { label: 'Rows', min: 2, max: 150, step: 1 });
+  gridFolder.addBinding(PARAMS, 'gridMode', {
+    label: 'Size Mode',
+    options: {
+      'Fill Canvas': 'fill',
+      'Fixed Size': 'fixed',
+    },
+  });
+  gridFolder.addBinding(PARAMS, 'tracking', { label: 'Column Gap', min: -50, max: 100, step: 1 });
+  gridFolder.addBinding(PARAMS, 'lineSpacing', { label: 'Row Gap', min: -50, max: 100, step: 1 });
 
   // ===== SEQUENCE =====
   const seqFolder = pane.addFolder({ title: 'Sequence', expanded: true });
@@ -587,12 +604,10 @@ export const initControls = (container, onExport, onTransparencyChange, onRedraw
   cloneModeBinding.on('change', updateExtrusionControls);
   updateExtrusionControls(); // Initialize visibility
 
-  // ===== SPACING =====
-  const spacingFolder = pane.addFolder({ title: 'Spacing', expanded: false });
-  spacingFolder.addBinding(PARAMS, 'tracking', { label: 'Tracking', min: -50, max: 50, step: 1 });
-  spacingFolder.addBinding(PARAMS, 'lineSpacing', { label: 'Line Spacing', min: -50, max: 50, step: 1 });
-  spacingFolder.addBinding(PARAMS, 'rowPhaseOffset', { label: 'Row Phase', min: -1, max: 1, step: 0.05 });
-  spacingFolder.addBinding(PARAMS, 'colPhaseOffset', { label: 'Col Phase', min: -1, max: 1, step: 0.05 });
+  // ===== PHASE OFFSETS =====
+  const phaseFolder = pane.addFolder({ title: 'Phase Offsets', expanded: false });
+  phaseFolder.addBinding(PARAMS, 'rowPhaseOffset', { label: 'Row Phase', min: -1, max: 1, step: 0.05 });
+  phaseFolder.addBinding(PARAMS, 'colPhaseOffset', { label: 'Col Phase', min: -1, max: 1, step: 0.05 });
 
   // ===== COLORS =====
   const colorFolder = pane.addFolder({ title: 'Colors', expanded: false });

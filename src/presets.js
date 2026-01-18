@@ -6,7 +6,9 @@ const DEFAULT_PARAMS = { ...PARAMS };
 
 // Zod schema for preset validation
 const PresetParamsSchema = z.object({
-  textDistribution: z.enum(['repeat', 'split-letter', 'split-word']).optional(),
+  textMode: z.enum(['repeat-letter', 'repeat-word', 'split-letter', 'split-word']).optional(),
+  repeatPattern: z.enum(['sequential', 'mirror', 'alternating']).optional(),
+  gridMode: z.enum(['fill', 'fixed']).optional(),
   sequencePattern: z.enum(['linear', 'centerOut', 'wave', 'spiral', 'random']).optional(),
   linearDirection: z.enum(['horizontal', 'vertical', 'diagonal']).optional(),
   spiralDensity: z.number().min(0.1).max(20).optional(),
@@ -267,7 +269,9 @@ export function saveCustomPreset(name, currentParams) {
 
   // Create preset from current params (only animation-related)
   const presetParams = {
-    textDistribution: currentParams.textDistribution,
+    textMode: currentParams.textMode,
+    repeatPattern: currentParams.repeatPattern,
+    gridMode: currentParams.gridMode,
     sequencePattern: currentParams.sequencePattern,
     linearDirection: currentParams.linearDirection,
     spiralDensity: currentParams.spiralDensity,
