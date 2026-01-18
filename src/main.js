@@ -32,7 +32,7 @@ const collisionResolver = new CollisionResolver();
  * Generate cache key for grid (invalidates when grid structure changes)
  */
 function getGridCacheKey(params, width, height) {
-  return `${params.text}|${params.mode}|${params.textDistribution}|${params.columns}|${params.rows}|${params.tracking}|${params.lineSpacing}|${width}|${height}`;
+  return `${params.text}|${params.textMode}|${params.repeatPattern}|${params.gridMode}|${params.columns}|${params.rows}|${params.tracking}|${params.lineSpacing}|${params.fontSize}|${params.linearDirection}|${width}|${height}`;
 }
 
 /**
@@ -121,13 +121,37 @@ function handleAspectRatioChange() {
 }
 
 /**
- * Parse text into characters or words
+ * Parse text into characters or words based on textMode
  */
-function parseText(text, mode) {
-  if (mode === 'word') {
+function parseText(text, textMode) {
+  // Word modes: 'repeat-word', 'split-word'
+  if (textMode.includes('word')) {
     return text.split(/\s+/).filter(w => w.length > 0);
   }
+  // Letter modes: 'repeat-letter', 'split-letter'
   return text.split('');
+}
+
+/**
+ * Apply repeat pattern to characters array
+ */
+function applyRepeatPattern(chars, pattern, index) {
+  if (pattern === 'mirror') {
+    // ABCCBA pattern: forward then reverse
+    const cycle = chars.length * 2 - 2;
+    if (cycle <= 0) return chars[0] || '';
+    const pos = index % cycle;
+    if (pos < chars.length) {
+      return chars[pos];
+    }
+    return chars[cycle - pos];
+  } else if (pattern === 'alternating') {
+    // ABAB pattern: only use first 2 chars/words
+    const subset = chars.slice(0, 2);
+    return subset[index % subset.length] || '';
+  }
+  // Sequential: ABCABC (default)
+  return chars[index % chars.length];
 }
 
 /**
@@ -135,34 +159,86 @@ function parseText(text, mode) {
  */
 function createGrid(chars, params, width, height) {
   const items = [];
-  const { columns, rows, tracking, lineSpacing, textDistribution } = params;
-  const cellWidth = width / columns;
-  const cellHeight = height / rows;
+  const { columns, rows, tracking, lineSpacing, textMode, repeatPattern, gridMode, fontSize, linearDirection } = params;
+
+  // Calculate cell dimensions based on gridMode
+  let cellWidth, cellHeight, offsetX, offsetY;
+
+  if (gridMode === 'fixed') {
+    // Fixed mode: cell size based on fontSize
+    cellWidth = fontSize * 1.2;
+    cellHeight = fontSize * 1.4;
+
+    // Calculate total grid size
+    const totalWidth = columns * cellWidth + (columns - 1) * tracking;
+    const totalHeight = rows * cellHeight + (rows - 1) * lineSpacing;
+
+    // Center the grid on canvas
+    offsetX = (width - totalWidth) / 2;
+    offsetY = (height - totalHeight) / 2;
+  } else {
+    // Fill mode: grid fills canvas (original behavior)
+    cellWidth = width / columns;
+    cellHeight = height / rows;
+    offsetX = 0;
+    offsetY = 0;
+  }
 
   let charIndex = 0;
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < columns; col++) {
       let char = '';
 
-      if (textDistribution === 'split-letter') {
-        // Each cell gets one letter from input (empty if not enough chars)
-        char = charIndex < chars.length ? chars[charIndex] : '';
-      } else if (textDistribution === 'split-word') {
-        // Each row gets one word from input (first column only)
-        if (col === 0 && row < chars.length) {
-          char = chars[row];
+      if (textMode === 'split-letter') {
+        // Letters split along direction, repeat along perpendicular axis
+        if (linearDirection === 'vertical') {
+          // Letters go down rows, columns repeat the same pattern
+          char = applyRepeatPattern(chars, repeatPattern, row);
+        } else {
+          // Letters go across columns, rows repeat the same pattern
+          char = applyRepeatPattern(chars, repeatPattern, col);
+        }
+      } else if (textMode === 'split-word') {
+        // Words split along direction, repeat along perpendicular axis
+        if (linearDirection === 'vertical') {
+          // Words go down rows (one per row), columns repeat
+          char = applyRepeatPattern(chars, repeatPattern, row);
+        } else {
+          // Words go across columns (one per column), rows repeat
+          char = applyRepeatPattern(chars, repeatPattern, col);
+        }
+      } else if (textMode === 'repeat-word') {
+        // Repeat words along the direction
+        if (linearDirection === 'vertical') {
+          // Words repeat down columns, first column only gets chars
+          if (col === 0) {
+            char = applyRepeatPattern(chars, repeatPattern, row);
+          }
+        } else {
+          // Words repeat across rows (horizontal/diagonal)
+          char = applyRepeatPattern(chars, repeatPattern, col);
         }
       } else {
-        // Default 'repeat': Text repeats to fill all grid cells
-        char = chars[charIndex % chars.length];
+        // Default 'repeat-letter': Letters repeat to fill all grid cells
+        char = applyRepeatPattern(chars, repeatPattern, charIndex);
       }
 
       // Only add item if there's a character to display
       if (char) {
+        // Calculate position based on gridMode
+        let x, y;
+        if (gridMode === 'fixed') {
+          x = offsetX + col * (cellWidth + tracking) + cellWidth / 2;
+          y = offsetY + row * (cellHeight + lineSpacing) + cellHeight / 2;
+        } else {
+          x = col * cellWidth + cellWidth / 2 + tracking;
+          y = row * cellHeight + cellHeight / 2 + lineSpacing;
+        }
+
         items.push({
           char,
-          x: col * cellWidth + cellWidth / 2 + tracking,
-          y: row * cellHeight + cellHeight / 2 + lineSpacing,
+          x,
+          y,
           row,
           col,
           totalRows: rows,
@@ -237,7 +313,7 @@ const sketch = (p) => {
 
 // Render frame
 function renderFrame(p, t) {
-  const chars = parseText(PARAMS.text, PARAMS.mode);
+  const chars = parseText(PARAMS.text, PARAMS.textMode);
   if (chars.length === 0) return;
 
   // Performance: Cache grid - only recreate when structure changes
@@ -358,7 +434,7 @@ async function renderFrameToCanvas(ctx, canvas, t, params, p5Ref, exportScale = 
     ctx.fillRect(0, 0, width, height);
   }
 
-  const chars = parseText(params.text, params.mode);
+  const chars = parseText(params.text, params.textMode);
   if (chars.length === 0) return;
 
   const items = createGrid(chars, params, width, height);
