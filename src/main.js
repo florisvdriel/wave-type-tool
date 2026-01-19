@@ -1,5 +1,5 @@
 import p5 from 'p5';
-import { PARAMS, ASPECT_RATIOS } from './config.js';
+import { PARAMS, ASPECT_RATIOS, FONTS } from './config.js';
 import { applyTransforms, getSpatialPhase } from './transforms/index.js';
 import { initControls } from './controls.js';
 import { exportPNG } from './export/png.js';
@@ -36,10 +36,10 @@ function getGridCacheKey(params, width, height) {
 }
 
 /**
- * Generate cache key for glyph points (invalidates when font or size changes)
+ * Generate cache key for glyph points (invalidates when font, size, or weight changes)
  */
 function getGlyphCacheKey(params) {
-  return `${params.font}|${params.fontSize}|${params.sampleFactor}`;
+  return `${params.font}|${params.fontSize}|${params.fontWeight}|${params.sampleFactor}`;
 }
 
 /**
@@ -367,6 +367,11 @@ function renderFrame(p, t) {
   currentItems = items;
   p.textFont(PARAMS.font);
 
+  // Get canvas context for direct font-weight control
+  const ctx = p.drawingContext;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
   // Determine clone count
   const cloneCount = PARAMS.extrusionEnabled
     ? Math.min(Math.max(1, PARAMS.cloneCount), 100)
@@ -409,13 +414,17 @@ function renderFrame(p, t) {
       p.rotate(p.radians(rotation));
       p.scale(cloneScale);
 
-      // Apply opacity
+      // Apply opacity and font-weight using Canvas 2D API
       const color = p.color(PARAMS.textColor);
       color.setAlpha(cloneOpacity * 255);
-      p.fill(color);
 
-      p.textSize(PARAMS.fontSize);
-      p.text(char, 0, 0);
+      ctx.save();
+      ctx.fillStyle = color.toString();
+      ctx.globalAlpha = cloneOpacity;
+      ctx.font = `${PARAMS.fontWeight} ${PARAMS.fontSize}px "${PARAMS.font}"`;
+      ctx.fillText(char, 0, 0);
+      ctx.restore();
+
       p.pop();
     }
   }
@@ -507,7 +516,7 @@ async function renderFrameToCanvas(ctx, canvas, t, params, p5Ref, exportScale = 
       ctx.translate(x + offsetX, y + offsetY);
       ctx.rotate(rotation * Math.PI / 180);
       ctx.scale(cloneScale, cloneScale);
-      ctx.font = `${scaledFontSize}px "${params.font}"`;
+      ctx.font = `${params.fontWeight} ${scaledFontSize}px "${params.font}"`;
 
       // Apply opacity
       ctx.globalAlpha = cloneOpacity;
@@ -570,8 +579,35 @@ async function handleExport(type, onProgress) {
   }
 }
 
+/**
+ * Load Google Fonts dynamically with variable weight support
+ */
+function loadGoogleFonts() {
+  const variableFonts = FONTS.filter(f => f.variable);
+  const staticFonts = FONTS.filter(f => !f.variable);
+
+  const fontParams = [
+    ...variableFonts.map(f =>
+      `family=${encodeURIComponent(f.cssFamily)}:ital,wght@0,${f.weights.min}..${f.weights.max}`
+    ),
+    ...staticFonts.map(f => {
+      const weights = f.weights.join(';');
+      return `family=${encodeURIComponent(f.cssFamily)}:wght@${weights}`;
+    })
+  ];
+
+  const url = `https://fonts.googleapis.com/css2?${fontParams.join('&')}&display=swap`;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = url;
+  document.head.appendChild(link);
+
+  console.log('Loading Google Fonts:', fontParams.length, 'fonts');
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+  loadGoogleFonts();
   canvasContainer = document.getElementById('canvas-container');
   p5Instance = new p5(sketch);
   initControls(

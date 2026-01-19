@@ -8,6 +8,7 @@ export const PARAMS = {
   textMode: 'repeat-letter', // 'repeat-letter' | 'repeat-word' | 'split-letter' | 'split-word'
   repeatPattern: 'sequential', // 'sequential' | 'mirror' | 'alternating'
   font: 'Inter',
+  fontWeight: 400,
   fontSize: 36,
 
   // Grid
@@ -111,43 +112,26 @@ export const ASPECT_RATIOS = {
 };
 
 // Available fonts - curated for generative typography
+// Each font includes metadata about variable weight support
 export const FONTS = [
-  // Monospace (good for grids)
-  'Space Mono',
-  'Roboto Mono',
-  'IBM Plex Mono',
-  'JetBrains Mono',
-  'Fira Code',
-  'Source Code Pro',
-  'Inconsolata',
-  'Ubuntu Mono',
-  // Display/Impact (bold statements)
-  'Bebas Neue',
-  'Anton',
-  'Oswald',
-  'Archivo Black',
-  'Russo One',
-  'Black Ops One',
-  'Bungee',
-  'Monoton',
-  // Geometric Sans (clean, modern)
-  'Inter',
-  'Space Grotesk',
-  'Poppins',
-  'Montserrat',
-  'Raleway',
-  'Work Sans',
-  'Outfit',
-  'DM Sans',
-  // Serif/Contrast
-  'Playfair Display',
-  'Lora',
-  'Merriweather',
-  'Cormorant Garamond',
-  // Experimental/Variable
-  'Recursive',
-  'Anybody',
-  'Fraunces',
+  // Variable Fonts (continuous weight range)
+  { name: 'Inter', variable: true, weights: { min: 100, max: 900 }, cssFamily: 'Inter' },
+  { name: 'Inter Tight', variable: true, weights: { min: 100, max: 900 }, cssFamily: 'Inter Tight' },
+  { name: 'Instrument Sans', variable: true, weights: { min: 400, max: 700 }, cssFamily: 'Instrument Sans' },
+  { name: 'Instrument Serif', variable: true, weights: { min: 400, max: 700 }, cssFamily: 'Instrument Serif' },
+  { name: 'Outfit', variable: true, weights: { min: 100, max: 900 }, cssFamily: 'Outfit' },
+  { name: 'Unbounded', variable: true, weights: { min: 200, max: 900 }, cssFamily: 'Unbounded' },
+  { name: 'Montagu Slab', variable: true, weights: { min: 100, max: 700 }, cssFamily: 'Montagu Slab' },
+  { name: 'Syne', variable: true, weights: { min: 400, max: 800 }, cssFamily: 'Syne' },
+
+  // Static Fonts (discrete weights)
+  { name: 'Gloock', variable: false, weights: [400], cssFamily: 'Gloock' },
+  { name: 'Koulen', variable: false, weights: [400], cssFamily: 'Koulen' },
+  { name: 'Rammetto One', variable: false, weights: [400], cssFamily: 'Rammetto One' },
+  { name: 'Spline Sans Mono', variable: false, weights: [300, 400, 500, 600, 700], cssFamily: 'Spline Sans Mono' },
+  { name: 'Xanh Mono', variable: false, weights: [400, 700], cssFamily: 'Xanh Mono' },
+  { name: 'Libre Caslon Display', variable: false, weights: [400], cssFamily: 'Libre Caslon Display' },
+  { name: 'Libre Caslon Text', variable: false, weights: [400, 700], cssFamily: 'Libre Caslon Text' },
 ];
 
 // Runtime storage for uploaded fonts

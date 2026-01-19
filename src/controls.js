@@ -35,7 +35,7 @@ function showToast(message, isError = true) {
 // Get all available fonts (Google + uploaded)
 function getAllFonts() {
   const fonts = {};
-  FONTS.forEach(f => fonts[f] = f);
+  FONTS.forEach(f => fonts[f.name] = f.name);
   uploadedFonts.forEach(f => fonts[`${f.name} (uploaded)`] = f.name);
   return fonts;
 }
@@ -81,7 +81,31 @@ async function handleFontUpload(file) {
     // Wait for font to load
     await document.fonts.load(`16px "${fontName}"`);
 
-    uploadedFonts.push({ name: fontName, dataUrl });
+    // Detect font weight capabilities
+    let isVariable = false;
+    let weightRange = [400];
+
+    try {
+      const testWeights = [100, 200, 300, 400, 500, 600, 700, 800, 900];
+      const availableWeights = [];
+
+      for (const weight of testWeights) {
+        const result = await document.fonts.load(`${weight} 16px "${fontName}"`);
+        if (result.length > 0) availableWeights.push(weight);
+      }
+
+      weightRange = availableWeights.length > 1 ? availableWeights : [400];
+      isVariable = availableWeights.length > 3; // Heuristic: 4+ weights = likely variable
+    } catch (error) {
+      console.warn('Could not detect font weights:', error);
+    }
+
+    uploadedFonts.push({
+      name: fontName,
+      dataUrl,
+      variable: isVariable,
+      weights: isVariable ? { min: 100, max: 900 } : weightRange
+    });
 
     // Update font dropdown
     if (fontBinding) {
@@ -295,6 +319,49 @@ export const initControls = (container, onExport, onTransparencyChange, onRedraw
     options: getAllFonts(),
   });
   textFolder.addBinding(PARAMS, 'fontSize', { label: 'Size', min: 12, max: 120, step: 1 });
+
+  // Font weight slider with dynamic range based on font capabilities
+  const fontWeightBinding = textFolder.addBinding(PARAMS, 'fontWeight', {
+    label: 'Weight',
+    min: 100,
+    max: 900,
+    step: 1,
+  });
+
+  // Update weight slider range based on selected font
+  const updateWeightSlider = () => {
+    const selectedFont = FONTS.find(f => f.name === PARAMS.font);
+
+    if (!selectedFont) {
+      // Uploaded font - show full range
+      fontWeightBinding.hidden = false;
+      fontWeightBinding.min = 100;
+      fontWeightBinding.max = 900;
+      pane.refresh();
+      return;
+    }
+
+    if (selectedFont.variable) {
+      // Variable font - show dynamic range
+      fontWeightBinding.hidden = false;
+      fontWeightBinding.min = selectedFont.weights.min;
+      fontWeightBinding.max = selectedFont.weights.max;
+    } else if (selectedFont.weights.length > 1) {
+      // Multiple discrete weights
+      fontWeightBinding.hidden = false;
+      fontWeightBinding.min = Math.min(...selectedFont.weights);
+      fontWeightBinding.max = Math.max(...selectedFont.weights);
+    } else {
+      // Single weight - hide slider
+      fontWeightBinding.hidden = true;
+    }
+
+    pane.refresh();
+  };
+
+  // Listen to font changes and update weight slider
+  fontBinding.on('change', updateWeightSlider);
+  updateWeightSlider();
 
   // Create font drop zone after pane
   createFontDropZone(container);

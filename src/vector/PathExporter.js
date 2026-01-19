@@ -96,6 +96,7 @@ export function generateVectorSVG(items, params, width, height, time = 0) {
       params.font,
       char,
       params.fontSize,
+      params.fontWeight,
       params.sampleFactor
     );
 

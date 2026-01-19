@@ -31,52 +31,56 @@ class FontManager {
   /**
    * Check if a font is loaded and ready
    */
-  isLoaded(fontName) {
-    return this.loadedFonts.has(fontName);
+  isLoaded(fontName, weight = 400) {
+    const cacheKey = `${fontName}|${weight}`;
+    return this.loadedFonts.has(cacheKey);
   }
 
   /**
    * Get a loaded font (returns null if not loaded)
    */
-  getFont(fontName) {
-    return this.loadedFonts.get(fontName) || null;
+  getFont(fontName, weight = 400) {
+    const cacheKey = `${fontName}|${weight}`;
+    return this.loadedFonts.get(cacheKey) || null;
   }
 
   /**
    * Load a font for vector export
    * Returns a Promise that resolves to the p5.Font object
    */
-  async loadFont(fontName) {
+  async loadFont(fontName, weight = 400) {
+    const cacheKey = `${fontName}|${weight}`;
+
     // Already loaded
-    if (this.loadedFonts.has(fontName)) {
-      return this.loadedFonts.get(fontName);
+    if (this.loadedFonts.has(cacheKey)) {
+      return this.loadedFonts.get(cacheKey);
     }
 
     // Already loading - return existing promise
-    if (this.loadingPromises.has(fontName)) {
-      return this.loadingPromises.get(fontName);
+    if (this.loadingPromises.has(cacheKey)) {
+      return this.loadingPromises.get(cacheKey);
     }
 
     // Start loading
-    const loadPromise = this._loadFontInternal(fontName);
-    this.loadingPromises.set(fontName, loadPromise);
+    const loadPromise = this._loadFontInternal(fontName, weight);
+    this.loadingPromises.set(cacheKey, loadPromise);
 
     try {
       const font = await loadPromise;
-      this.loadedFonts.set(fontName, font);
+      this.loadedFonts.set(cacheKey, font);
       return font;
     } catch (error) {
-      console.error(`Failed to load font "${fontName}":`, error);
+      console.error(`Failed to load font "${fontName}" weight ${weight}:`, error);
       throw error;
     } finally {
-      this.loadingPromises.delete(fontName);
+      this.loadingPromises.delete(cacheKey);
     }
   }
 
   /**
    * Internal font loading logic
    */
-  async _loadFontInternal(fontName) {
+  async _loadFontInternal(fontName, weight = 400) {
     if (!this.p5Instance) {
       throw new Error('FontManager: p5 instance not set. Call setP5Instance() first.');
     }
@@ -88,7 +92,7 @@ class FontManager {
     }
 
     // Try to load as Google Font
-    return this._loadGoogleFont(fontName);
+    return this._loadGoogleFont(fontName, weight);
   }
 
   /**
@@ -115,10 +119,11 @@ class FontManager {
    * Google Fonts CSS contains URLs to actual font files.
    * We need to parse the CSS and extract the TTF URL.
    */
-  async _loadGoogleFont(fontName) {
+  async _loadGoogleFont(fontName, weight = 400) {
     try {
       // Fetch the CSS that contains the font file URL
-      const cssUrl = `${GOOGLE_FONTS_CSS_URL}${encodeURIComponent(fontName)}&display=swap`;
+      // Include weight parameter to get specific weight
+      const cssUrl = `${GOOGLE_FONTS_CSS_URL}${encodeURIComponent(fontName)}:wght@${weight}&display=swap`;
 
       // Need to request with a user-agent that gets TTF (not WOFF2)
       // Use a simple approach: fetch CSS and parse for url()
