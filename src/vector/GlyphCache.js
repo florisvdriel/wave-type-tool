@@ -4,13 +4,13 @@
  * Caches the vector points extracted from characters to avoid
  * expensive textToPoints() calls on every frame/export.
  *
- * Key: `${fontName}|${char}|${fontSize}|${sampleFactor}`
+ * Key: `${fontName}|${char}|${fontSize}|${fontWeight}|${sampleFactor}`
  * Value: { points: Array<{x, y}>, bounds: {x, y, w, h} }
  *
  * Performance considerations:
  * - Max 200 glyphs cached (configurable)
  * - LRU eviction when limit reached
- * - Only cache at current fontSize (don't pre-cache all sizes)
+ * - Only cache at current fontSize/fontWeight (don't pre-cache all sizes/weights)
  */
 
 import fontManager from './FontManager.js';
@@ -28,8 +28,8 @@ class GlyphCache {
   /**
    * Generate cache key for a glyph
    */
-  getCacheKey(fontName, char, fontSize, sampleFactor = 0.5) {
-    return `${fontName}|${char}|${fontSize}|${sampleFactor}`;
+  getCacheKey(fontName, char, fontSize, fontWeight, sampleFactor = 0.5) {
+    return `${fontName}|${char}|${fontSize}|${fontWeight}|${sampleFactor}`;
   }
 
   /**
@@ -38,11 +38,12 @@ class GlyphCache {
    * @param {string} fontName - Name of the font
    * @param {string} char - Single character to get points for
    * @param {number} fontSize - Font size in pixels
+   * @param {number} fontWeight - Font weight (100-900)
    * @param {number} sampleFactor - Detail level (0.1 = low, 1.0 = high)
    * @returns {Object|null} - { points: Array<{x,y}>, bounds: {x,y,w,h} } or null if font not loaded
    */
-  getGlyph(fontName, char, fontSize, sampleFactor = 0.5) {
-    const key = this.getCacheKey(fontName, char, fontSize, sampleFactor);
+  getGlyph(fontName, char, fontSize, fontWeight, sampleFactor = 0.5) {
+    const key = this.getCacheKey(fontName, char, fontSize, fontWeight, sampleFactor);
 
     // Cache hit
     if (this.cache.has(key)) {
@@ -130,8 +131,8 @@ class GlyphCache {
   /**
    * Check if a glyph is cached
    */
-  has(fontName, char, fontSize, sampleFactor = 0.5) {
-    const key = this.getCacheKey(fontName, char, fontSize, sampleFactor);
+  has(fontName, char, fontSize, fontWeight, sampleFactor = 0.5) {
+    const key = this.getCacheKey(fontName, char, fontSize, fontWeight, sampleFactor);
     return this.cache.has(key);
   }
 

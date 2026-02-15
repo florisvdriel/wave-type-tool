@@ -8,22 +8,23 @@
  */
 
 import { fontManager, glyphCache, generateVectorSVG, estimateSVGSize } from '../vector/index.js';
+import { FONTS } from '../config.js';
 
 export const exportSVG = async (items, params, width, height, filename = 'wave-type') => {
   // Try vector export if enabled
   if (params.useVectorExport) {
     try {
       // Ensure font is loaded for vector export
-      const font = fontManager.getFont(params.font);
+      const font = fontManager.getFont(params.font, params.fontWeight);
       if (!font) {
         console.log('SVG Export: Loading font for vector export...');
-        await fontManager.loadFont(params.font);
+        await fontManager.loadFont(params.font, params.fontWeight);
       }
 
       // Preload glyphs for all characters in items
       const uniqueChars = [...new Set(items.map(i => i.char))];
       for (const char of uniqueChars) {
-        glyphCache.getGlyph(params.font, char, params.fontSize, params.sampleFactor);
+        glyphCache.getGlyph(params.font, char, params.fontSize, params.fontWeight, params.sampleFactor);
       }
 
       // Check estimated file size
@@ -60,10 +61,22 @@ const exportTextSVG = (items, params, width, height, filename) => {
     ? ''
     : `  <rect width="100%" height="100%" fill="${params.backgroundColor}"/>\n`;
 
+  // Build Google Fonts CSS import with proper weight support
+  const fontConfig = FONTS.find(f => f.name === params.font);
+  let weightSpec = 'wght@400;700'; // Fallback
+
+  if (fontConfig && fontConfig.variable) {
+    weightSpec = `ital,wght@0,${fontConfig.weights.min}..${fontConfig.weights.max}`;
+  } else if (fontConfig && fontConfig.weights.length > 1) {
+    weightSpec = `wght@${fontConfig.weights.join(';')}`;
+  }
+
+  const cssUrl = `https://fonts.googleapis.com/css2?family=${params.font.replace(/ /g, '+')}:${weightSpec}&amp;display=swap`;
+
   let svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="${svgNS}" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
 ${backgroundRect}  <style>
-    @import url('https://fonts.googleapis.com/css2?family=${params.font.replace(/ /g, '+')}:wght@400;700&amp;display=swap');
+    @import url('${cssUrl}');
     text { font-family: '${params.font}', monospace; }
   </style>
   <g id="characters">
@@ -103,7 +116,7 @@ ${backgroundRect}  <style>
     // Escape special characters for XML
     const escapedChar = escapeXML(char);
 
-    svg += `    <text transform="${transform}" fill="${color}" fill-opacity="${opacity.toFixed(3)}" font-size="${params.fontSize}" text-anchor="middle" dominant-baseline="central">${escapedChar}</text>\n`;
+    svg += `    <text transform="${transform}" fill="${color}" fill-opacity="${opacity.toFixed(3)}" font-size="${params.fontSize}" font-weight="${params.fontWeight}" text-anchor="middle" dominant-baseline="central">${escapedChar}</text>\n`;
   }
 
   svg += `  </g>
