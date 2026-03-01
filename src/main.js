@@ -551,11 +551,21 @@ async function handleExport(type, onProgress) {
     // Get current preview width for scale calculation
     const previewWidth = p5Instance.width;
 
-    // Calculate export dimensions respecting aspect ratio
-    // Ensure dimensions are even (required by H.264 encoder)
+    // Calculate export dimensions respecting aspect ratio.
+    // PARAMS.exportWidth is treated as the *long side* so portrait formats
+    // export at conventional dimensions (e.g. 9:16 → 1080×1920, not 1920×3414).
+    // All values are rounded to even numbers (H.264 requirement).
     const aspectRatio = ASPECT_RATIOS[PARAMS.aspectRatio] || 1;
-    const exportWidth = PARAMS.exportWidth;
-    const exportHeight = Math.round(exportWidth / aspectRatio / 2) * 2; // Round to even
+    let exportWidth, exportHeight;
+    if (aspectRatio >= 1) {
+      // Landscape / square: exportWidth setting is the wide side
+      exportWidth = PARAMS.exportWidth;
+      exportHeight = Math.round(exportWidth / aspectRatio / 2) * 2;
+    } else {
+      // Portrait: exportWidth setting is the tall side (height)
+      exportHeight = PARAMS.exportWidth;
+      exportWidth = Math.round(exportHeight * aspectRatio / 2) * 2;
+    }
 
     try {
       const blob = await recordMP4(

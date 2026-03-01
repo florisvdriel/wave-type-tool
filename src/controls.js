@@ -1,11 +1,16 @@
 import { Pane } from 'tweakpane';
 import { PARAMS, FONTS, PATTERNS, uploadedFonts, ASPECT_RATIOS } from './config.js';
 
-// Calculate export height based on width and aspect ratio
-// Round to even number (required by H.264 encoder)
+// Calculate export height based on the "long side" setting and aspect ratio.
+// PARAMS.exportWidth is the long side: for landscape it's the width,
+// for portrait it's the height. Round to even (H.264 requirement).
 function getExportHeight() {
   const aspectRatio = ASPECT_RATIOS[PARAMS.aspectRatio] || 1;
-  return Math.round(PARAMS.exportWidth / aspectRatio / 2) * 2;
+  if (aspectRatio >= 1) {
+    return Math.round(PARAMS.exportWidth / aspectRatio / 2) * 2;
+  } else {
+    return PARAMS.exportWidth; // long side = height for portrait
+  }
 }
 import {
   BUILTIN_PRESETS,
@@ -701,7 +706,7 @@ export const initControls = (container, onExport, onTransparencyChange, onRedraw
   const exportHeightState = { height: getExportHeight() };
 
   const exportWidthBinding = mp4Folder.addBinding(PARAMS, 'exportWidth', {
-    label: 'Width',
+    label: 'Long side',
     options: { '1280': 1280, '1920': 1920, '2560': 2560, '3840': 3840 },
   });
 
