@@ -40,6 +40,24 @@ export const setProgressCallback = (callback) => {
 };
 
 /**
+ * Return the lowest H.264 codec string whose level supports the given frame size.
+ * Level is chosen by macroblock count (one 16×16 block = one MB).
+ *   Level 4.0 →  8,192 MBs  (~1920×1080)
+ *   Level 5.0 → 22,080 MBs  (~3840×1470)
+ *   Level 5.1 → 36,864 MBs  (~4096×2304)
+ *   Level 5.2 → 36,864 MBs  (same MBs, higher fps cap)
+ */
+function getH264Codec(width, height) {
+  const mbs = Math.ceil(width / 16) * Math.ceil(height / 16);
+  let levelIdc;
+  if (mbs <= 8192)       levelIdc = 40; // Level 4.0
+  else if (mbs <= 22080) levelIdc = 50; // Level 5.0
+  else if (mbs <= 36864) levelIdc = 51; // Level 5.1
+  else                   levelIdc = 52; // Level 5.2
+  return `avc1.6400${levelIdc.toString(16).padStart(2, '0')}`;
+}
+
+/**
  * Record canvas animation to MP4
  * @param {Object} options Recording options
  * @param {Function} renderFrame Function that renders a single frame
@@ -107,9 +125,9 @@ export const recordMP4 = async (options, renderFrame, params, previewWidth = 800
     },
   });
 
-  // Configure encoder
+  // Configure encoder — codec level is chosen dynamically so all canvas sizes work
   encoder.configure({
-    codec: 'avc1.640028', // H.264 High Profile
+    codec: getH264Codec(width, height),
     width,
     height,
     bitrate,
