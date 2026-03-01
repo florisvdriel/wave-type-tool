@@ -171,8 +171,10 @@ export const applyTransforms = (item, index, time, params, p5Instance) => {
     const waveY = normalizedY * 2 - 1;
 
     // Calculate canvas dimensions for amplitude modulation
-    const canvasWidth = item.totalCols * item.cellWidth;
-    const canvasHeight = item.totalRows * item.cellHeight;
+    // In 'fixed' grid mode, cellWidth is based on fontSize (not canvas/columns),
+    // so we store the actual canvas dimensions on the item to use here.
+    const canvasWidth = item.canvasWidth ?? item.totalCols * item.cellWidth;
+    const canvasHeight = item.canvasHeight ?? item.totalRows * item.cellHeight;
     const centerX = canvasWidth / 2;
     const centerY = canvasHeight / 2;
 

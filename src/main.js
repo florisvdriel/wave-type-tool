@@ -245,6 +245,8 @@ function createGrid(chars, params, width, height) {
           totalCols: columns,
           cellWidth,
           cellHeight,
+          canvasWidth: width,
+          canvasHeight: height,
         });
       }
       charIndex++;
